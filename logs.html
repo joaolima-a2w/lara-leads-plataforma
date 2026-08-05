@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs - Lara Leads Sandbox</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+        :root {
+            --accent: #6355ec;
+            --accent-hover: #5240dd;
+            --accent-soft: rgba(99, 85, 236, 0.1);
+            --success: #16a34a;
+            --success-soft: rgba(22, 163, 74, 0.1);
+            --danger: #dc2626;
+            --danger-soft: rgba(220, 38, 38, 0.08);
+            --info: #2563eb;
+            --info-soft: rgba(37, 99, 235, 0.08);
+
+            --bg-canvas: #f6f6f8;
+            --bg-surface: #ffffff;
+            --bg-surface-hover: #f2f2f4;
+
+            --text-primary: #17171c;
+            --text-secondary: #67676f;
+            --text-tertiary: #9a9aa2;
+
+            --border: #e6e6ea;
+            --border-strong: #d8d8de;
+
+            --json-bg: #1a1a20;
+            --json-key: #f472b6;
+            --json-string: #4ade80;
+            --json-number: #fbbf24;
+            --json-boolean: #60a5fa;
+            --json-null: #a78bfa;
+
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+            --shadow-xs: 0 1px 2px rgba(16, 16, 24, 0.04);
+            --shadow-sm: 0 2px 6px rgba(16, 16, 24, 0.06);
+        }
+
+        [data-theme="dark"] {
+            --bg-canvas: #131217;
+            --bg-surface: #1b1a20;
+            --bg-surface-hover: #232228;
+            --text-primary: #f2f2f5;
+            --text-secondary: #a3a3ad;
+            --text-tertiary: #6f6f79;
+            --accent: #7c6ff6;
+            --accent-hover: #8f84f8;
+            --accent-soft: rgba(124, 111, 246, 0.16);
+            --border: #2b2a31;
+            --border-strong: #383740;
+        }
+
+        html, body { height: 100%; }
+        body {
+            background: var(--bg-canvas);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .page {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 1.5rem 1.5rem 4rem;
+        }
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .brand-logo {
+            background: var(--accent);
+            width: 30px;
+            height: 30px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .brand-logo svg { width: 16px; height: 16px; }
+
+        .brand h1 {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+        .brand span {
+            display: block;
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.45rem 0.75rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn:hover { color: var(--text-primary); border-color: var(--border-strong); background: var(--bg-surface-hover); }
+        .btn svg { width: 14px; height: 14px; }
+        .btn.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+        .btn-danger:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
+
+        .toolbar {
+            display: flex;
+            gap: 0.6rem;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        .toolbar input, .toolbar select {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border);
+            background: var(--bg-surface);
+            border-radius: var(--radius-sm);
+            font-size: 0.82rem;
+            color: var(--text-primary);
+            outline: none;
+        }
+        .toolbar input:focus, .toolbar select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+        .toolbar input { flex: 1; min-width: 200px; font-family: 'JetBrains Mono', monospace; }
+
+        .summary {
+            font-size: 0.78rem;
+            color: var(--text-tertiary);
+            margin-bottom: 1rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 1rem;
+            color: var(--text-tertiary);
+        }
+        .empty-state svg { width: 32px; height: 32px; margin-bottom: 0.75rem; opacity: 0.6; }
+        .empty-state p { font-size: 0.85rem; }
+
+        .log-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .log-entry {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-xs);
+        }
+
+        .log-entry-head {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.7rem 0.9rem;
+            cursor: pointer;
+            user-select: none;
+            flex-wrap: wrap;
+        }
+        .log-entry-head:hover { background: var(--bg-surface-hover); }
+
+        .dir-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            flex-shrink: 0;
+        }
+        .dir-badge svg { width: 11px; height: 11px; }
+        .dir-badge.in { background: var(--success-soft); color: var(--success); }
+        .dir-badge.out { background: var(--info-soft); color: var(--info); }
+
+        .status-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .status-badge.ok { background: var(--success-soft); color: var(--success); }
+        .status-badge.err { background: var(--danger-soft); color: var(--danger); }
+
+        .log-endpoint {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 260px;
+        }
+
+        .log-chatid {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--accent);
+            background: var(--accent-soft);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .log-time {
+            font-size: 0.72rem;
+            color: var(--text-tertiary);
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .chevron {
+            width: 15px;
+            height: 15px;
+            color: var(--text-tertiary);
+            transition: transform 0.15s ease;
+            flex-shrink: 0;
+        }
+        .log-entry.open .chevron { transform: rotate(180deg); }
+
+        .log-entry-body {
+            display: none;
+            border-top: 1px solid var(--border);
+        }
+        .log-entry.open .log-entry-body { display: block; }
+
+        .log-body-section {
+            border-bottom: 1px solid var(--border);
+        }
+        .log-body-section:last-child { border-bottom: none; }
+
+        .log-body-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.9rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-tertiary);
+            background: var(--bg-canvas);
+        }
+
+        .log-body-section pre {
+            margin: 0;
+            background: var(--json-bg);
+            padding: 0.9rem;
+            overflow-x: auto;
+            max-height: 340px;
+            overflow-y: auto;
+        }
+
+        .json-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.76rem;
+            line-height: 1.5;
+            color: #b4b8c4;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .json-key { color: var(--json-key); }
+        .json-string { color: var(--json-string); }
+        .json-number { color: var(--json-number); }
+        .json-boolean { color: var(--json-boolean); }
+        .json-null { color: var(--json-null); }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="top-bar">
+            <div class="brand">
+                <div class="brand-logo"><i data-lucide="scroll-text"></i></div>
+                <div>
+                    <h1>Logs da Plataforma</h1>
+                    <span>Lara Leads Sandbox</span>
+                </div>
+            </div>
+            <div class="top-actions">
+                <button class="btn" id="btn-pause" title="Pausar/retomar atualização automática">
+                    <i data-lucide="pause"></i>
+                    <span id="btn-pause-label">Pausar</span>
+                </button>
+                <button class="btn btn-danger" id="btn-clear" title="Limpar todos os logs">
+                    <i data-lucide="trash-2"></i>
+                    <span>Limpar</span>
+                </button>
+                <button class="btn" id="btn-theme" title="Alternar tema">
+                    <i data-lucide="moon"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <input type="text" id="filter-chat-id" placeholder="Filtrar por chat_id..." />
+            <select id="filter-direction">
+                <option value="">Todas as direções</option>
+                <option value="in">⬇ Recebido (n8n → plataforma)</option>
+                <option value="out">⬆ Enviado (plataforma → n8n)</option>
+            </select>
+        </div>
+
+        <div class="summary" id="summary">Carregando...</div>
+
+        <div id="content"></div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'lara_leads_sandbox_state';
+        const contentEl = document.getElementById('content');
+        const summaryEl = document.getElementById('summary');
+        const filterChatId = document.getElementById('filter-chat-id');
+        const filterDirection = document.getElementById('filter-direction');
+        const btnPause = document.getElementById('btn-pause');
+        const btnPauseLabel = document.getElementById('btn-pause-label');
+        const btnClear = document.getElementById('btn-clear');
+        const btnTheme = document.getElementById('btn-theme');
+
+        let allLogs = [];
+        let openIds = new Set();
+        let paused = false;
+        let pollHandle = null;
+
+        // --- Theme (shared with the main app via the same localStorage key) ---
+        function getStoredTheme() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return 'light';
+                const parsed = JSON.parse(raw);
+                return (parsed.settings && parsed.settings.theme) || 'light';
+            } catch (e) {
+                return 'light';
+            }
+        }
+
+        function setStoredTheme(theme) {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                const parsed = raw ? JSON.parse(raw) : { chats: [], activeChatId: null, settings: {} };
+                parsed.settings = parsed.settings || {};
+                parsed.settings.theme = theme;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+            } catch (e) { /* ignore */ }
+        }
+
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.body.setAttribute('data-theme', 'dark');
+                btnTheme.innerHTML = '<i data-lucide="sun"></i>';
+            } else {
+                document.body.removeAttribute('data-theme');
+                btnTheme.innerHTML = '<i data-lucide="moon"></i>';
+            }
+            lucide.createIcons();
+        }
+
+        let currentTheme = getStoredTheme();
+        applyTheme(currentTheme);
+
+        btnTheme.addEventListener('click', () => {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            setStoredTheme(currentTheme);
+            applyTheme(currentTheme);
+        });
+
+        // --- JSON syntax highlighting (same rules as the main app's inspector) ---
+        function syntaxHighlight(json) {
+            if (typeof json !== 'string') {
+                json = JSON.stringify(json, undefined, 2);
+            }
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    cls = /:$/.test(match) ? 'json-key' : 'json-string';
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        function formatTime(iso) {
+            const d = new Date(iso);
+            return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        }
+
+        function render() {
+            const chatFilter = filterChatId.value.trim().toLowerCase();
+            const dirFilter = filterDirection.value;
+
+            const filtered = allLogs.filter(l => {
+                if (dirFilter && l.direction !== dirFilter) return false;
+                if (chatFilter && !(l.chat_id || '').toLowerCase().includes(chatFilter)) return false;
+                return true;
+            });
+
+            summaryEl.textContent = `${filtered.length} de ${allLogs.length} requisições registradas (mais recentes primeiro)`;
+
+            if (filtered.length === 0) {
+                contentEl.innerHTML = `
+                    <div class="empty-state">
+                        <i data-lucide="inbox"></i>
+                        <p>${allLogs.length === 0 ? 'Nenhuma requisição registrada ainda. Chame /api/callback, /api/status ou /api/cost pra ver aqui.' : 'Nenhum log corresponde ao filtro atual.'}</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            contentEl.innerHTML = `<div class="log-list">${filtered.map(renderEntry).join('')}</div>`;
+            lucide.createIcons();
+
+            contentEl.querySelectorAll('.log-entry-head').forEach(head => {
+                head.addEventListener('click', () => {
+                    const entry = head.closest('.log-entry');
+                    const id = entry.dataset.id;
+                    if (openIds.has(id)) {
+                        openIds.delete(id);
+                        entry.classList.remove('open');
+                    } else {
+                        openIds.add(id);
+                        entry.classList.add('open');
+                    }
+                });
+            });
+        }
+
+        function renderEntry(log) {
+            const isOpen = openIds.has(log.id);
+            const dirLabel = log.direction === 'in' ? 'Recebido' : 'Enviado';
+            const dirIcon = log.direction === 'in' ? 'arrow-down' : 'arrow-up';
+            const isOk = log.statusCode >= 200 && log.statusCode < 300;
+
+            return `
+                <div class="log-entry ${isOpen ? 'open' : ''}" data-id="${log.id}">
+                    <div class="log-entry-head">
+                        <span class="dir-badge ${log.direction}"><i data-lucide="${dirIcon}"></i>${dirLabel}</span>
+                        <span class="status-badge ${isOk ? 'ok' : 'err'}">${log.statusCode ?? '-'}</span>
+                        <span class="log-endpoint" title="${escapeHtml(log.endpoint)}">${escapeHtml(log.endpoint)}</span>
+                        ${log.chat_id ? `<span class="log-chatid">${escapeHtml(log.chat_id)}</span>` : ''}
+                        <span class="log-time">${formatTime(log.timestamp)}</span>
+                        <i data-lucide="chevron-down" class="chevron"></i>
+                    </div>
+                    <div class="log-entry-body">
+                        <div class="log-body-section">
+                            <div class="log-body-label">Requisição</div>
+                            <pre><code class="json-code">${syntaxHighlight(log.request)}</code></pre>
+                        </div>
+                        <div class="log-body-section">
+                            <div class="log-body-label">Resposta</div>
+                            <pre><code class="json-code">${syntaxHighlight(log.response)}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function fetchLogs() {
+            if (paused) return;
+            try {
+                const res = await fetch('/api/logs?limit=300');
+                if (!res.ok) return;
+                const data = await res.json();
+                allLogs = data.logs || [];
+                render();
+            } catch (e) {
+                summaryEl.textContent = 'Não foi possível conectar ao servidor local (localhost:3000).';
+            }
+        }
+
+        filterChatId.addEventListener('input', render);
+        filterDirection.addEventListener('change', render);
+
+        btnPause.addEventListener('click', () => {
+            paused = !paused;
+            btnPause.classList.toggle('active', paused);
+            btnPauseLabel.textContent = paused ? 'Retomar' : 'Pausar';
+            btnPause.querySelector('svg') && btnPause.querySelector('i').setAttribute('data-lucide', paused ? 'play' : 'pause');
+            lucide.createIcons();
+            if (!paused) fetchLogs();
+        });
+
+        btnClear.addEventListener('click', async () => {
+            if (!confirm('Limpar todos os logs registrados?')) return;
+            try {
+                await fetch('/api/logs/clear', { method: 'POST' });
+                allLogs = [];
+                openIds.clear();
+                render();
+            } catch (e) { /* ignore */ }
+        });
+
+        fetchLogs();
+        pollHandle = setInterval(fetchLogs, 2000);
+    </script>
+</body>
+</html>

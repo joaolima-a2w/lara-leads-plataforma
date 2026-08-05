@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Erro no Workflow - Lara Leads Platform</title>
+    <!-- Google Fonts: Inter for UI & JetBrains Mono for Code -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        :root {
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --danger-glow: rgba(239, 68, 68, 0.2);
+            --bg-dark: #090d16;
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --card-border-active: rgba(239, 68, 68, 0.4);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --text-accent: #818cf8; /* Light Indigo */
+            --accent-glow: rgba(129, 140, 248, 0.15);
+            --code-bg: #11131e;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(239, 68, 68, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.1) 0%, transparent 45%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 760px;
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Glassmorphism Error Card */
+        .error-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 1.25rem;
+            padding: 2.5rem;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 40px rgba(239, 68, 68, 0.05);
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        /* Glowing Accent line at the top */
+        .error-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--danger), #a855f7, var(--danger));
+            background-size: 200% 200%;
+            animation: gradientMove 4s ease infinite;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Error Header */
+        .error-header {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .error-icon-wrapper {
+            background: var(--danger-glow);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            width: 3.5rem;
+            height: 3.5rem;
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--danger);
+            position: relative;
+        }
+
+        .error-icon-wrapper i {
+            width: 1.8rem;
+            height: 1.8rem;
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px var(--danger)); }
+            50% { transform: scale(1.1); filter: drop-shadow(0 0 10px var(--danger)); }
+        }
+
+        .header-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: var(--danger);
+            border-radius: 2rem;
+            width: fit-content;
+        }
+
+        .title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        /* Error Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .info-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--card-border);
+            border-radius: 0.75rem;
+            padding: 1rem 1.25rem;
+            transition: var(--transition);
+        }
+
+        .info-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            word-break: break-all;
+        }
+
+        /* Error Box Area */
+        .error-message-box {
+            background: var(--code-bg);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .error-message-box::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--danger);
+        }
+
+        .error-message-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--danger);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .error-message-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #f87171;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* Collapsible Section for Technical Details */
+        .collapsible {
+            border: 1px solid var(--card-border);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            margin-bottom: 2rem;
+            transition: var(--transition);
+        }
+
+        .collapsible-trigger {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.01);
+            border: none;
+            color: var(--text-main);
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-align: left;
+            transition: var(--transition);
+        }
+
+        .collapsible-trigger:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .collapsible-trigger span {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .collapsible-trigger i.chevron {
+            transition: var(--transition);
+        }
+
+        .collapsible.active .collapsible-trigger i.chevron {
+            transform: rotate(180deg);
+        }
+
+        .collapsible.active {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            background: var(--code-bg);
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .json-wrapper {
+            padding: 1.25rem;
+            position: relative;
+        }
+
+        .btn-copy-absolute {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            border-radius: 0.375rem;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-copy-absolute:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .json-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #d1d5db;
+            white-space: pre-wrap;
+            word-break: break-all;
+            display: block;
+            max-height: 350px;
+            overflow-y: auto;
+            padding-right: 2rem;
+        }
+
+        /* Syntax colors (styled by JS dynamically) */
+        .json-key { color: #f472b6; }
+        .json-string { color: #34d399; }
+        .json-number { color: #f59e0b; }
+        .json-boolean { color: #60a5fa; }
+        .json-null { color: #a78bfa; }
+
+        /* Action Buttons Row */
+        .actions-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--card-border);
+            padding-top: 1.75rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            flex: 1;
+            min-width: 160px;
+        }
+
+        .btn-primary {
+            background: var(--danger);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-primary:hover {
+            background: var(--danger-hover);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary:active {
+            transform: translateY(0);
+        }
+
+        /* Footer metadata */
+        .error-footer {
+            margin-top: 1.5rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Loader Animation for Retry Button */
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Status Toast Alert */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(17, 24, 39, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.75rem 1.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+            z-index: 100;
+            opacity: 0;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast i {
+            color: #34d399;
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 640px) {
+            .error-card {
+                padding: 1.5rem;
+            }
+            .error-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            .actions-container {
+                flex-direction: column;
+            }
+            .btn {
+                width: 100%;
+                flex: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="error-card">
+            <!-- Header -->
+            <div class="error-header">
+                <div class="error-icon-wrapper">
+                    <i data-lucide="alert-triangle"></i>
+                </div>
+                <div class="header-meta">
+                    <span class="badge" id="error-badge">Falha de Execução</span>
+                    <h1 class="title">Erro Detectado no Workflow</h1>
+                </div>
+            </div>
+
+            <!-- Info Details Grid -->
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Workflow</div>
+                    <div class="info-value" id="workflow-name">{{WORKFLOW_NAME}}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Nó de Falha</div>
+                    <div class="info-value" id="node-name">{{NODE_NAME}}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Data e Hora</div>
+                    <div class="info-value" id="timestamp">{{TIMESTAMP}}</div>
+                </div>
+            </div>
+
+            <!-- Error Message Panel -->
+            <div class="error-message-box">
+                <div class="error-message-title">
+                    <i data-lucide="x-circle" style="width: 14px; height: 14px;"></i>
+                    Mensagem de Erro
+                </div>
+                <div class="error-message-text" id="error-message">{{ERROR_MESSAGE}}</div>
+            </div>
+
+            <!-- Collapsible details (Raw JSON payload) -->
+            <div class="collapsible" id="json-collapsible">
+                <button class="collapsible-trigger" id="btn-toggle-json">
+                    <span>
+                        <i data-lucide="braces" style="width: 16px; height: 16px; color: var(--text-accent);"></i>
+                        Metadados & Payload de Erro Completo
+                    </span>
+                    <i data-lucide="chevron-down" class="chevron" style="width: 18px; height: 18px;"></i>
+                </button>
+                <div class="collapsible-content" id="json-content">
+                    <div class="json-wrapper">
+                        <button class="btn-copy-absolute" id="btn-copy-json" title="Copiar JSON Completo">
+                            <i data-lucide="copy" style="width: 14px; height: 14px;"></i>
+                        </button>
+                        <pre><code class="json-code" id="raw-json-block">{{RAW_JSON}}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="actions-container">
+                <button class="btn btn-secondary" id="btn-copy-error">
+                    <i data-lucide="copy"></i>
+                    Copiar Detalhes
+                </button>
+                
+                <button class="btn btn-primary" id="btn-retry-workflow">
+                    <i data-lucide="refresh-cw" id="retry-icon"></i>
+                    <span id="retry-text">Reexecutar Workflow</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="error-footer">
+            <i data-lucide="message-square-code" style="width: 14px; height: 14px;"></i>
+            <span>Lara Leads Sandbox Platform &bull; Monitor de Erros do n8n</span>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast" id="toast-msg">
+        <i data-lucide="check-circle" style="width: 18px; height: 18px;"></i>
+        <span id="toast-text">Copiado com sucesso!</span>
+    </div>
+
+    <script>
+        // Check if variables were replaced by the backend template engine.
+        // If they still contain the placeholder strings, we fetch dynamically.
+        let workflowVal = document.getElementById('workflow-name').textContent;
+        let nodeVal = document.getElementById('node-name').textContent;
+        let timeVal = document.getElementById('timestamp').textContent;
+        let errorVal = document.getElementById('error-message').textContent;
+        let jsonVal = document.getElementById('raw-json-block').textContent;
+
+        const isTemplateUnreplaced = (str) => {
+            return str.startsWith('{{') && str.endsWith('}}');
+        };
+
+        // If placeholders were not replaced, load via API or Query String
+        if (isTemplateUnreplaced(workflowVal)) {
+            // Check query parameters first
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('workflow') || urlParams.has('node') || urlParams.has('error') || urlParams.has('mensagem')) {
+                loadFromQueryParams(urlParams);
+            } else {
+                // Fallback to fetch from server API
+                fetchLastError();
+            }
+        } else {
+            // Setup formatting for injected JSON
+            formatJsonCode();
+            formatTimestamp();
+        }
+
+        // Initialize icons
+        lucide.createIcons();
+
+        // Collapsible JSON panel
+        const collapsible = document.getElementById('json-collapsible');
+        const trigger = document.getElementById('btn-toggle-json');
+        const content = document.getElementById('json-content');
+
+        trigger.addEventListener('click', () => {
+            collapsible.classList.toggle('active');
+            if (collapsible.classList.contains('active')) {
+                content.style.maxHeight = content.scrollHeight + "px";
+            } else {
+                content.style.maxHeight = "0px";
+            }
+        });
+
+        // Copy actions
+        const btnCopyError = document.getElementById('btn-copy-error');
+        const btnCopyJson = document.getElementById('btn-copy-json');
+
+        btnCopyError.addEventListener('click', () => {
+            const textToCopy = `[ERRO DE WORKFLOW]
+Workflow: ${document.getElementById('workflow-name').textContent}
+Nó de Falha: ${document.getElementById('node-name').textContent}
+Erro: ${document.getElementById('error-message').textContent}
+Data: ${document.getElementById('timestamp').textContent}`;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showToast("Mensagem de erro copiada para a área de transferência!");
+            });
+        });
+
+        btnCopyJson.addEventListener('click', () => {
+            const rawJson = document.getElementById('raw-json-block').textContent;
+            navigator.clipboard.writeText(rawJson).then(() => {
+                showToast("Payload JSON copiado com sucesso!");
+            });
+        });
+
+        // Retry Simulation
+        const btnRetry = document.getElementById('btn-retry-workflow');
+        const retryIcon = document.getElementById('retry-icon');
+        const retryText = document.getElementById('retry-text');
+
+        btnRetry.addEventListener('click', () => {
+            btnRetry.disabled = true;
+            retryIcon.classList.add('spinner');
+            retryText.textContent = "Reexecutando...";
+            
+            // Simulate API request to rerun n8n workflow
+            setTimeout(() => {
+                retryIcon.classList.remove('spinner');
+                retryIcon.setAttribute('data-lucide', 'check');
+                lucide.createIcons();
+                retryText.textContent = "Workflow Iniciado!";
+                btnRetry.style.background = "#10b981"; // Success Green
+                btnRetry.style.boxShadow = "0 4px 14px rgba(16, 185, 129, 0.4)";
+                showToast("Sinal de reexecução enviado para o n8n com sucesso!");
+                
+                setTimeout(() => {
+                    btnRetry.disabled = false;
+                    retryIcon.setAttribute('data-lucide', 'refresh-cw');
+                    lucide.createIcons();
+                    retryText.textContent = "Reexecutar Workflow";
+                    btnRetry.style.background = "var(--danger)";
+                    btnRetry.style.boxShadow = "0 4px 14px rgba(239, 68, 68, 0.4)";
+                }, 3000);
+            }, 2000);
+        });
+
+        // Helpers
+        function showToast(message) {
+            const toast = document.getElementById('toast-msg');
+            const toastText = document.getElementById('toast-text');
+            toastText.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function loadFromQueryParams(params) {
+            const msg = params.get('mensagem');
+            let wf = params.get('workflow');
+            let node = params.get('node');
+            let err = params.get('error');
+
+            if (msg) {
+                // Parse markdown-ish message
+                const wfMatch = msg.match(/\*Workflow:\*\s*([^\n]+)/i);
+                const nodeMatch = msg.match(/\*Nó:\*\s*([^\n]+)/i) || msg.match(/\*Node:\*\s*([^\n]+)/i);
+                const errMatch = msg.match(/\*Erro:\*\s*([\s\S]+)/i) || msg.match(/\*Error:\*\s*([\s\S]+)/i);
+                
+                if (wfMatch) wf = wfMatch[1].trim();
+                if (nodeMatch) node = nodeMatch[1].trim();
+                if (errMatch) err = errMatch[1].trim();
+                else if (!err) err = msg;
+            }
+
+            document.getElementById('workflow-name').textContent = wf || "Workflow Customizado";
+            document.getElementById('node-name').textContent = node || "Nó Não Especificado";
+            document.getElementById('error-message').textContent = err || "Erro não detalhado.";
+            document.getElementById('timestamp').textContent = new Date().toLocaleString('pt-BR');
+            
+            const rawObj = {
+                source: "Query Parameters",
+                workflow: wf,
+                node: node,
+                error: err,
+                timestamp: new Date().toISOString()
+            };
+            document.getElementById('raw-json-block').textContent = JSON.stringify(rawObj, null, 2);
+            formatJsonCode();
+        }
+
+        function fetchLastError() {
+            fetch('/api/last-error')
+                .then(response => {
+                    if (!response.ok) throw new Error('Falha ao buscar erro');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.workflowName) {
+                        document.getElementById('workflow-name').textContent = data.workflowName;
+                        document.getElementById('node-name').textContent = data.nodeName;
+                        document.getElementById('error-message').textContent = data.errorMessage;
+                        
+                        // Parse / format date
+                        let d = new Date(data.timestamp);
+                        document.getElementById('timestamp').textContent = isNaN(d) ? data.timestamp : d.toLocaleString('pt-BR');
+                        
+                        document.getElementById('raw-json-block').textContent = JSON.stringify(data.raw || data, null, 2);
+                        formatJsonCode();
+                    } else {
+                        showNoErrorsRecorded();
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showNoErrorsRecorded("Nenhum erro recebido no sandbox local ainda. Envie uma requisição POST com erro.");
+                });
+        }
+
+        function showNoErrorsRecorded(msg) {
+            document.getElementById('workflow-name').textContent = "-";
+            document.getElementById('node-name').textContent = "-";
+            document.getElementById('timestamp').textContent = "-";
+            document.getElementById('error-message').textContent = msg || "Nenhum erro foi registrado em memória neste servidor ainda. Experimente simular um erro!";
+            document.getElementById('error-badge').textContent = "Aguardando Erros";
+            document.getElementById('error-badge').style.background = "rgba(129, 140, 248, 0.1)";
+            document.getElementById('error-badge').style.border = "1px solid rgba(129, 140, 248, 0.25)";
+            document.getElementById('error-badge').style.color = "var(--text-accent)";
+            document.getElementById('raw-json-block').textContent = JSON.stringify({ status: "idle", message: "Nenhum payload enviado para o endpoint de erro." }, null, 2);
+            formatJsonCode();
+        }
+
+        function formatTimestamp() {
+            const timeEl = document.getElementById('timestamp');
+            const date = new Date(timeEl.textContent);
+            if (!isNaN(date.getTime())) {
+                timeEl.textContent = date.toLocaleString('pt-BR');
+            }
+        }
+
+        // JSON Syntax Highlighting
+        function formatJsonCode() {
+            const codeEl = document.getElementById('raw-json-block');
+            let jsonText = codeEl.textContent;
+            
+            try {
+                // Ensure it's valid JSON before highlighting
+                const parsed = JSON.parse(jsonText);
+                jsonText = JSON.stringify(parsed, null, 2);
+            } catch(e) {
+                // Not valid JSON, keep as is
+                return;
+            }
+
+            // Syntax highlighting regex replacement
+            jsonText = jsonText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const highlighted = jsonText.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+
+            codeEl.innerHTML = highlighted;
+        }
+    </script>
+</body>
+</html>

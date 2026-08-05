@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lara Leads - Chat Sandbox</title>
+    <!-- Google Fonts: Inter & JetBrains Mono for Code -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Esquerda -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand">
+                    <div class="brand-logo">
+                        <i data-lucide="message-square-code"></i>
+                    </div>
+                    <div class="brand-info">
+                        <span class="brand-name">Lara Leads</span>
+                        <span class="brand-tag">Sandbox API</span>
+                    </div>
+                </div>
+                <button class="btn-new-chat" id="btn-new-chat" title="Criar Nova Conversa">
+                    <i data-lucide="plus"></i>
+                    <span>Novo chat</span>
+                </button>
+            </div>
+
+            <!-- Lista de Conversas -->
+            <div class="chat-list-container">
+                <div class="chat-list" id="chat-list">
+                    <!-- Gerado dinamicamente via JS -->
+                </div>
+            </div>
+
+            <!-- Rodapé da Sidebar -->
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="status-dot online"></span>
+                    <span class="status-text" id="api-status-text">Simulação Ativa</span>
+                </div>
+                <button class="btn-icon" id="btn-toggle-theme" title="Alternar Tema (Escuro/Claro)">
+                    <i data-lucide="moon"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Área Principal de Chat -->
+        <main class="chat-area" id="chat-area">
+            <!-- Header do Chat -->
+            <header class="chat-header">
+                <div class="chat-header-info">
+                    <div class="active-chat-title-container">
+                        <input type="text" class="active-chat-title-input" id="active-chat-title-input" value="Nenhum chat selecionado" placeholder="Renomear conversa..." />
+                        <i data-lucide="pencil-line" class="edit-icon"></i>
+                    </div>
+                    <div class="chat-header-badges">
+                        <div class="chat-id-badge" id="chat-id-badge" style="display: none;">
+                            <span>chat_id</span>
+                            <code id="chat-id-text">...</code>
+                            <button class="btn-copy-id" id="btn-copy-id" title="Copiar ID do Chat">
+                                <i data-lucide="copy" class="icon-small"></i>
+                            </button>
+                        </div>
+                        <div class="chat-cost-badge" id="chat-cost-badge" style="display: none;" title="Custo acumulado em tempo real deste chat">
+                            <i data-lucide="wallet" class="icon-small"></i>
+                            <code id="chat-cost-text">R$ 0,00</code>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-header-actions">
+                    <button class="btn-header-toggle" id="btn-toggle-settings" title="Configurar Parâmetros de Teste">
+                        <i data-lucide="sliders-horizontal"></i>
+                        <span>Parâmetros</span>
+                    </button>
+                    <button class="btn-header-toggle" id="btn-toggle-json" title="Abrir Inspetor JSON">
+                        <i data-lucide="braces"></i>
+                        <span>JSON</span>
+                    </button>
+                    <button class="btn-header-toggle" id="btn-open-logs" title="Ver logs de requisições recebidas/enviadas">
+                        <i data-lucide="scroll-text"></i>
+                        <span>Logs</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Painel de Configurações / Parâmetros do Workflow (Retrátil) -->
+            <section class="settings-panel collapsed" id="settings-panel">
+                <div class="settings-grid">
+                    <div class="settings-col">
+                        <h4 class="settings-title">Integração do Endpoint</h4>
+                        <div class="form-group">
+                            <label for="setting-api-mode">Modo do Workflow</label>
+                            <select id="setting-api-mode" class="form-select">
+                                <option value="mock-browser">Simulador Local (Navegador - Sem Servidor)</option>
+                                <option value="mock-server">Servidor Local (http://localhost:3000/api/mock-workflow)</option>
+                                <option value="custom-webhook">Webhook Personalizado (n8n / Outro)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="custom-webhook-url-group" style="display: none;">
+                            <label for="setting-webhook-url">URL do Webhook Real</label>
+                            <input type="url" id="setting-webhook-url" class="form-input" placeholder="https://seu-n8n.domain/webhook/..." />
+                        </div>
+                        <button type="button" class="btn-demo btn-demo-info" id="btn-demo-status">
+                            <i data-lucide="play-circle" class="icon-small"></i>
+                            <span>Simular Logs de Status</span>
+                        </button>
+                        <button type="button" class="btn-demo btn-demo-danger" id="btn-demo-error">
+                            <i data-lucide="alert-triangle" class="icon-small"></i>
+                            <span>Simular Erro de Workflow</span>
+                        </button>
+                    </div>
+                    <div class="settings-col">
+                        <h4 class="settings-title">Dados do Tenant &amp; Usuário</h4>
+                        <div class="settings-row">
+                            <div class="form-group">
+                                <label for="setting-tenant-id">tenant_id</label>
+                                <input type="text" id="setting-tenant-id" class="form-input" value="A2W" />
+                            </div>
+                            <div class="form-group">
+                                <label for="setting-tenant-name">tenant_name</label>
+                                <input type="text" id="setting-tenant-name" class="form-input" value="A2W Tecnologia" />
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="form-group">
+                                <label for="setting-user-id">user_id</label>
+                                <input type="text" id="setting-user-id" class="form-input" value="usr_leads_tester" />
+                            </div>
+                            <div class="form-group">
+                                <label for="setting-session-id">session_id</label>
+                                <input type="text" id="setting-session-id" class="form-input" value="sess_7777777777777777" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-col">
+                        <h4 class="settings-title">Metadados Adicionais</h4>
+                        <div class="settings-row">
+                            <div class="form-group">
+                                <label for="setting-ip">ip</label>
+                                <input type="text" id="setting-ip" class="form-input" value="127.0.0.1" />
+                            </div>
+                            <div class="form-group">
+                                <label for="setting-page">page</label>
+                                <input type="text" id="setting-page" class="form-input" value="/app/minerador" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="setting-user-agent">user_agent</label>
+                            <input type="text" id="setting-user-agent" class="form-input" value="browser de teste" />
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Histórico de Mensagens -->
+            <div class="messages-container" id="messages-container">
+                <!-- Seletor inicial ou mensagens reais -->
+                <div class="welcome-container" id="welcome-container">
+                    <div class="welcome-card">
+                        <i data-lucide="bot" class="welcome-icon"></i>
+                        <h2>Teste de Workflows Lara Leads</h2>
+                        <p>Crie um novo chat na barra lateral para simular o envio de payloads JSON para suas automações e conferir as respostas integradas.</p>
+                        <button class="btn-create-welcome" id="btn-create-welcome">
+                            <i data-lucide="plus-circle"></i>
+                            Começar agora
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rodapé de Input do Chat -->
+            <footer class="chat-footer">
+                <div class="chat-input-wrapper">
+                    <!-- Inline Workflow Hint Helper -->
+                    <div class="workflow-hint-input-container">
+                        <i data-lucide="git-branch" class="hint-icon"></i>
+                        <input type="text" id="input-workflow-hint" placeholder="Workflow Hint (opcional, ex: rota_suporte, vendas_agro)..." />
+                    </div>
+                    <div class="chat-input-bar">
+                        <textarea id="chat-input" placeholder="Digite uma mensagem para simular o workflow..." rows="1" disabled></textarea>
+                        <button class="btn-send" id="btn-send" disabled title="Enviar mensagem">
+                            <i data-lucide="send"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="footer-note">
+                    Payloads em conformidade com as rotas de automação Lara Leads. Todos os dados são salvos localmente.
+                </div>
+            </footer>
+        </main>
+
+        <!-- Overlay do painel de JSON (clique fora para fechar) -->
+        <div class="details-overlay" id="details-overlay"></div>
+
+        <!-- Painel Deslizante de JSON / Detalhes -->
+        <aside class="details-panel" id="details-panel">
+            <div class="panel-header">
+                <div class="panel-header-top">
+                    <h3>Inspetor JSON</h3>
+                    <button class="btn-icon panel-close" id="btn-close-details" title="Fechar painel">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="tabs">
+                    <button class="tab-btn active" id="tab-request" data-tab="request-content">Requisição</button>
+                    <button class="tab-btn" id="tab-response" data-tab="response-content">Resposta</button>
+                </div>
+            </div>
+
+            <div class="panel-body">
+                <!-- Conteúdo da Aba Requisição -->
+                <div class="tab-content active" id="request-content">
+                    <div class="tab-meta">
+                        <span>POST para o workflow</span>
+                        <button class="btn-copy-code" id="btn-copy-req" title="Copiar JSON de Requisição">
+                            <i data-lucide="copy" class="icon-small"></i>
+                            <span>Copiar</span>
+                        </button>
+                    </div>
+                    <pre><code id="json-request" class="json-code">{ "status": "Aguardando envio..." }</code></pre>
+                </div>
+
+                <!-- Conteúdo da Aba Resposta -->
+                <div class="tab-content" id="response-content">
+                    <div class="tab-meta">
+                        <span>Retorno do workflow</span>
+                        <button class="btn-copy-code" id="btn-copy-res" title="Copiar JSON de Resposta">
+                            <i data-lucide="copy" class="icon-small"></i>
+                            <span>Copiar</span>
+                        </button>
+                    </div>
+                    <pre><code id="json-response" class="json-code">{ "status": "Aguardando resposta..." }</code></pre>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Script principal -->
+    <script src="app.js"></script>
+</body>
+</html>
