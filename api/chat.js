@@ -67,7 +67,7 @@ async function handleStatus(req, res) {
         const chat_id = getSearchParams(req).get('chat_id');
         if (!chat_id) return res.status(400).json({ error: true, message: 'O parametro chat_id e obrigatorio.' });
         const state = await sandboxStore.getChatState(chat_id);
-        return res.status(200).json({ chat_id, status: state.status.text, progress: state.status.progress });
+        return res.status(200).json({ chat_id, status: state.status.status, progress: state.status.progress });
     }
 
     return res.status(405).json({ error: true, message: 'Método não suportado.' });

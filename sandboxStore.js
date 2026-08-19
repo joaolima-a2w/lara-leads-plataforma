@@ -58,7 +58,10 @@ async function getChatState(chatId) {
         .maybeSingle();
     if (error) throw new Error(`Falha ao ler estado do chat: ${error.message}`);
     return {
-        status: { text: data?.status_text ?? null, progress: data?.status_progress ?? null },
+        // A chave interna precisa se chamar "status" (não "text") — o app.js lê
+        // data.status.status tanto no /api/poll local (server.js) quanto neste, e os
+        // dois precisam devolver exatamente a mesma forma.
+        status: { status: data?.status_text ?? null, progress: data?.status_progress ?? null },
         cost: { total: data?.cost_total ?? 0, currency: data?.cost_currency ?? 'BRL' }
     };
 }
