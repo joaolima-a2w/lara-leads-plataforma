@@ -1,6 +1,18 @@
 {
   "framework": null,
   "rewrites": [
-    { "source": "/error", "destination": "/api/error" }
+    { "source": "/error", "destination": "/api/error" },
+    { "source": "/api/callback", "destination": "/api/chat" },
+    { "source": "/api/status", "destination": "/api/chat" },
+    { "source": "/api/cost", "destination": "/api/chat" },
+    { "source": "/api/poll", "destination": "/api/chat" },
+    { "source": "/api/pending-responses", "destination": "/api/chat" },
+    { "source": "/api/simulate-async-status", "destination": "/api/chat" },
+    { "source": "/api/last-error", "destination": "/api/chat" },
+    { "source": "/api/logs/:path*", "destination": "/api/logs" },
+    { "source": "/api/decisores/:path*", "destination": "/api/decisores" },
+    { "source": "/api/leads-cadencia/:path*", "destination": "/api/leads-cadencia" },
+    { "source": "/api/supabase/health", "destination": "/api/health" },
+    { "source": "/api/db/health", "destination": "/api/health" }
   ]
 }
