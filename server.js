@@ -7,6 +7,7 @@ const leadsCadenciaApi = require('./leadsCadenciaApi');
 const leadDetailApi = require('./leadDetailApi');
 const decisoresApi = require('./decisoresApi');
 const personalizacaoApi = require('./personalizacaoApi');
+const contasApi = require('./contasApi');
 
 const PORT = 3000;
 
@@ -764,6 +765,44 @@ const server = http.createServer((req, res) => {
             })
             .catch((err) => {
                 console.error('[decisores] Falha ao listar:', err.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: true, message: err.message }));
+            });
+        return;
+    }
+
+    // --- Endpoint: Estatísticas da tela "Contas" (empresas buscadas) ---
+    // URL: GET http://localhost:3000/api/contas/stats
+    if (req.url.startsWith('/api/contas/stats') && req.method === 'GET') {
+        contasApi.getContasStats()
+            .then((stats) => {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(stats));
+            })
+            .catch((err) => {
+                console.error('[contas] Falha ao calcular stats:', err.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: true, message: err.message }));
+            });
+        return;
+    }
+
+    // --- Endpoint: Lista de contas (empresas buscadas) para a tela "Contas" ---
+    // URL: GET http://localhost:3000/api/contas?page=1&pageSize=20&search=...&status=...
+    if (req.url.startsWith('/api/contas') && req.method === 'GET') {
+        const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+        const page = parseInt(parsedUrl.searchParams.get('page'), 10) || 1;
+        const pageSize = parseInt(parsedUrl.searchParams.get('pageSize'), 10) || 20;
+        const search = parsedUrl.searchParams.get('search') || '';
+        const status = parsedUrl.searchParams.get('status') || '';
+
+        contasApi.getContas({ page, pageSize, search, status })
+            .then((result) => {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            })
+            .catch((err) => {
+                console.error('[contas] Falha ao listar:', err.message);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: true, message: err.message }));
             });

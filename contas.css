@@ -1,0 +1,43 @@
+/* ============ Tela "Contas" (empresas buscadas) ============ */
+
+.cell-empresa {
+    font-weight: 600;
+}
+
+.cell-segmento {
+    display: block;
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cell-site-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.82rem;
+}
+.cell-site-link:hover {
+    text-decoration: underline;
+}
+
+.cell-empty {
+    color: var(--text-tertiary);
+    font-size: 0.82rem;
+}
+
+.cell-contatos-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.cell-contatos-names {
+    font-size: 0.82rem;
+    color: var(--text-primary);
+}
+
+.cell-contatos-more {
+    font-size: 0.72rem;
+    color: var(--text-tertiary);
+}
