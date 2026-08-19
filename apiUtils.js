@@ -6,6 +6,10 @@ function applyCors(res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    // Sem isso, o Vercel Edge pode devolver 304 (Not Modified) pra uma resposta JSON
+    // dinâmica — o fetch() do front quebra ao tentar dar .json() num corpo vazio
+    // quando o navegador não tem o 200 original em cache local pra reaproveitar.
+    res.setHeader('Cache-Control', 'no-store');
 }
 
 // Aplica CORS e resolve o preflight OPTIONS. Retorna true se a requisição já foi
@@ -32,4 +36,16 @@ function getJsonBody(req) {
     }
 }
 
-module.exports = { applyCors, handleCors, getJsonBody };
+// Query string via WHATWG URL API — mesma técnica usada em server.js (local) e mais
+// confiável, nesse projeto, do que depender de req.query populado pelo runtime.
+function getSearchParams(req) {
+    return new URL(req.url, `http://${req.headers.host || 'localhost'}`).searchParams;
+}
+
+// Path sem a query string (pra rotas dinâmicas, tipo api/leads-cadencia/[id]/detail.js,
+// que precisam extrair o :id da URL) — mesma cautela: não confia em req.query.id.
+function getPathname(req) {
+    return new URL(req.url, `http://${req.headers.host || 'localhost'}`).pathname;
+}
+
+module.exports = { applyCors, handleCors, getJsonBody, getSearchParams, getPathname };
