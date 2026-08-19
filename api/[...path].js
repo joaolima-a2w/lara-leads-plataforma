@@ -17,9 +17,13 @@ const { waitUntil } = require('@vercel/functions');
 module.exports = async (req, res) => {
     if (handleCors(req, res)) return;
 
-    const segments = Array.isArray(req.query.path) ? req.query.path : [];
-    const routePath = '/' + segments.join('/');
+    // req.query.path (o array de segmentos que o [...path].js "deveria" preencher) não
+    // veio populado de forma confiável em produção — em vez de depender disso, parseia
+    // req.url diretamente (igual ao server.js local), removendo o prefixo /api.
+    const { pathname, searchParams } = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const routePath = pathname.replace(/^\/api/, '') || '/';
     const method = req.method;
+    const query = Object.fromEntries(searchParams.entries());
 
     try {
         // --- POST /api/callback — resposta assíncrona final ou intermediária do n8n ---
@@ -72,7 +76,7 @@ module.exports = async (req, res) => {
 
         // --- GET /api/status?chat_id= — leitura da legenda/sinal atual ---
         if (routePath === '/status' && method === 'GET') {
-            const chat_id = req.query.chat_id;
+            const chat_id = query.chat_id;
             if (!chat_id) return res.status(400).json({ error: true, message: 'O parametro chat_id e obrigatorio.' });
 
             const state = await sandboxStore.getChatState(chat_id);
@@ -106,7 +110,7 @@ module.exports = async (req, res) => {
 
         // --- GET /api/cost?chat_id= — leitura do custo acumulado ---
         if (routePath === '/cost' && method === 'GET') {
-            const chat_id = req.query.chat_id;
+            const chat_id = query.chat_id;
             if (!chat_id) return res.status(400).json({ error: true, message: 'O parametro chat_id e obrigatorio.' });
 
             const state = await sandboxStore.getChatState(chat_id);
@@ -115,7 +119,7 @@ module.exports = async (req, res) => {
 
         // --- GET /api/poll?chat_id= — mensagens novas + status + custo, tudo numa chamada ---
         if (routePath === '/poll' && method === 'GET') {
-            const chat_id = req.query.chat_id;
+            const chat_id = query.chat_id;
             if (!chat_id) return res.status(400).json({ error: true, message: 'O parametro chat_id e obrigatorio.' });
 
             const [messages, state] = await Promise.all([
@@ -127,7 +131,7 @@ module.exports = async (req, res) => {
 
         // --- GET /api/pending-responses?chat_id= — mantido pra compatibilidade/depuração ---
         if (routePath === '/pending-responses' && method === 'GET') {
-            const chat_id = req.query.chat_id;
+            const chat_id = query.chat_id;
             if (!chat_id) return res.status(400).json({ error: true, message: 'O parametro chat_id e obrigatorio.' });
 
             const messages = await sandboxStore.consumeMessages(chat_id);
@@ -173,9 +177,9 @@ module.exports = async (req, res) => {
 
         // --- GET /api/logs?chat_id=&limit= ---
         if (routePath === '/logs' && method === 'GET') {
-            const limitParam = parseInt(req.query.limit, 10);
+            const limitParam = parseInt(query.limit, 10);
             const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 300) : 300;
-            const logs = await sandboxStore.getLogs({ chatIdFilter: req.query.chat_id, limit });
+            const logs = await sandboxStore.getLogs({ chatIdFilter: query.chat_id, limit });
             return res.status(200).json({ logs, total: logs.length });
         }
 
@@ -295,9 +299,9 @@ module.exports = async (req, res) => {
 
         // --- GET /api/leads-cadencia?page=&pageSize=&search=&status= ---
         if (routePath === '/leads-cadencia' && method === 'GET') {
-            const page = parseInt(req.query.page, 10) || 1;
-            const pageSize = parseInt(req.query.pageSize, 10) || 20;
-            const result = await leadsCadenciaApi.getLeadsCadencia({ page, pageSize, search: req.query.search || '', status: req.query.status || '' });
+            const page = parseInt(query.page, 10) || 1;
+            const pageSize = parseInt(query.pageSize, 10) || 20;
+            const result = await leadsCadenciaApi.getLeadsCadencia({ page, pageSize, search: query.search || '', status: query.status || '' });
             return res.status(200).json(result);
         }
 
@@ -309,15 +313,15 @@ module.exports = async (req, res) => {
 
         // --- GET /api/decisores?page=&pageSize=&search= ---
         if (routePath === '/decisores' && method === 'GET') {
-            const page = parseInt(req.query.page, 10) || 1;
-            const pageSize = parseInt(req.query.pageSize, 10) || 20;
-            const result = await decisoresApi.getDecisores({ page, pageSize, search: req.query.search || '' });
+            const page = parseInt(query.page, 10) || 1;
+            const pageSize = parseInt(query.pageSize, 10) || 20;
+            const result = await decisoresApi.getDecisores({ page, pageSize, search: query.search || '' });
             return res.status(200).json(result);
         }
 
         // --- GET /api/personalizacao?user_id= ---
         if (routePath === '/personalizacao' && method === 'GET') {
-            const userId = req.query.user_id;
+            const userId = query.user_id;
             if (!userId) return res.status(400).json({ error: true, message: 'O parametro user_id e obrigatorio.' });
             const result = await personalizacaoApi.getPersonalizacoes(userId);
             return res.status(200).json(result);
