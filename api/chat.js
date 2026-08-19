@@ -55,7 +55,9 @@ async function handleStatus(req, res) {
 
         const numericProgress = Number(payload.progress);
         const hasProgress = payload.progress !== undefined && payload.progress !== null && !Number.isNaN(numericProgress);
-        const progress = hasProgress ? Math.max(0, Math.min(100, numericProgress)) : null;
+        // Arredondado pra inteiro — a coluna status_progress no Supabase é "integer"
+        // (a barra de progresso não precisa de casas decimais mesmo).
+        const progress = hasProgress ? Math.round(Math.max(0, Math.min(100, numericProgress))) : null;
         await sandboxStore.setStatus(chat_id, status || null, progress);
 
         const okResponse = { success: true };

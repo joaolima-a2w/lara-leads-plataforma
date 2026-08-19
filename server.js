@@ -141,7 +141,9 @@ const server = http.createServer((req, res) => {
                 // "progress" e opcional: um numero de 0 a 100 exibido como barra ao lado do status.
                 const numericProgress = Number(payload.progress);
                 const hasProgress = payload.progress !== undefined && payload.progress !== null && !Number.isNaN(numericProgress);
-                const progress = hasProgress ? Math.max(0, Math.min(100, numericProgress)) : null;
+                // Arredondado pra inteiro — mesma regra do lado do Vercel (lá a coluna
+                // status_progress no Supabase é "integer" e rejeita decimais).
+                const progress = hasProgress ? Math.round(Math.max(0, Math.min(100, numericProgress))) : null;
 
                 activeStatuses[chat_id] = { text: status || null, progress };
                 console.log(`⏳ [Status do Processo] Chat ID: ${chat_id} -> "${status}"${hasProgress ? ` (${progress}%)` : ''}`);
