@@ -8,7 +8,7 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@supabase/server": "^1.4.1",
+    "@supabase/supabase-js": "^2.112.3",
     "@vercel/functions": "^1.6.0",
     "dotenv": "^16.4.5",
     "pg": "^8.12.0"
