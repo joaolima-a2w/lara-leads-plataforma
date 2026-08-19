@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lara Leads - Chat Sandbox</title>
+    <title>Lara Leads - Chat</title>
     <!-- Google Fonts: Inter & JetBrains Mono for Code -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,28 +14,60 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Sidebar Esquerda -->
+        <!-- Trilho de Navegação (ícones das seções da plataforma) -->
+        <nav class="icon-rail">
+            <div class="rail-brand" title="Lara Leads">
+                <i data-lucide="sprout"></i>
+            </div>
+            <div class="rail-nav">
+                <a class="rail-btn" href="leads.html" title="Meus Leads em Cadência">
+                    <i data-lucide="layout-list"></i>
+                </a>
+                <button class="rail-btn active" id="rail-btn-chat" title="Lara Leads">
+                    <i data-lucide="message-square"></i>
+                </button>
+                <a class="rail-btn" href="contatos.html" title="Contatos">
+                    <i data-lucide="users"></i>
+                </a>
+                <a class="rail-btn" href="setup.html" title="Configuração de Setup">
+                    <i data-lucide="settings"></i>
+                </a>
+            </div>
+            <div class="rail-footer">
+                <button class="btn-icon" id="btn-toggle-theme" title="Alternar Tema (Escuro/Claro)">
+                    <i data-lucide="moon"></i>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Sidebar de Conversas -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <div class="brand">
-                    <div class="brand-logo">
-                        <i data-lucide="message-square-code"></i>
-                    </div>
-                    <div class="brand-info">
-                        <span class="brand-name">Lara Leads</span>
-                        <span class="brand-tag">Sandbox API</span>
-                    </div>
+                <div class="sidebar-title-row">
+                    <span class="sidebar-title">Conversas</span>
+                    <button class="btn-icon" id="btn-collapse-sidebar" title="Recolher painel">
+                        <i data-lucide="panel-left-close"></i>
+                    </button>
                 </div>
                 <button class="btn-new-chat" id="btn-new-chat" title="Criar Nova Conversa">
                     <i data-lucide="plus"></i>
-                    <span>Novo chat</span>
+                    <span>Nova conversa</span>
                 </button>
+                <div class="sidebar-search">
+                    <i data-lucide="search"></i>
+                    <input type="text" id="sidebar-search-input" placeholder="Pesquisar..." />
+                </div>
             </div>
 
             <!-- Lista de Conversas -->
             <div class="chat-list-container">
-                <div class="chat-list" id="chat-list">
-                    <!-- Gerado dinamicamente via JS -->
+                <div class="chat-group" id="chat-group-pinned" style="display: none;">
+                    <div class="chat-group-label">Fixado</div>
+                    <div class="chat-list" id="chat-list-pinned"></div>
+                </div>
+                <div class="chat-group">
+                    <div class="chat-group-label">Recentes</div>
+                    <div class="chat-list" id="chat-list"></div>
                 </div>
             </div>
 
@@ -45,9 +77,17 @@
                     <span class="status-dot online"></span>
                     <span class="status-text" id="api-status-text">Simulação Ativa</span>
                 </div>
-                <button class="btn-icon" id="btn-toggle-theme" title="Alternar Tema (Escuro/Claro)">
-                    <i data-lucide="moon"></i>
-                </button>
+                <div class="sidebar-footer-actions">
+                    <button class="btn-icon" id="btn-toggle-settings" title="Configurar Parâmetros de Teste">
+                        <i data-lucide="sliders-horizontal"></i>
+                    </button>
+                    <button class="btn-icon" id="btn-toggle-json" title="Abrir Inspetor JSON">
+                        <i data-lucide="braces"></i>
+                    </button>
+                    <button class="btn-icon" id="btn-open-logs" title="Ver logs de requisições recebidas/enviadas">
+                        <i data-lucide="scroll-text"></i>
+                    </button>
+                </div>
             </div>
         </aside>
 
@@ -57,9 +97,10 @@
             <header class="chat-header">
                 <div class="chat-header-info">
                     <div class="active-chat-title-container">
-                        <input type="text" class="active-chat-title-input" id="active-chat-title-input" value="Nenhum chat selecionado" placeholder="Renomear conversa..." />
+                        <input type="text" class="active-chat-title-input" id="active-chat-title-input" value="Lara Leads" placeholder="Renomear conversa..." />
                         <i data-lucide="pencil-line" class="edit-icon"></i>
                     </div>
+                    <span class="chat-header-subtitle">Prospecção B2B com cadência orientada por IA</span>
                     <div class="chat-header-badges">
                         <div class="chat-id-badge" id="chat-id-badge" style="display: none;">
                             <span>chat_id</span>
@@ -74,19 +115,17 @@
                         </div>
                     </div>
                 </div>
-                <div class="chat-header-actions">
-                    <button class="btn-header-toggle" id="btn-toggle-settings" title="Configurar Parâmetros de Teste">
-                        <i data-lucide="sliders-horizontal"></i>
-                        <span>Parâmetros</span>
+                <div class="chat-header-right">
+                    <div class="status-pill idle" id="chat-status-pill">
+                        <span class="status-pill-dot"></span>
+                        <span class="status-pill-text">Pronto</span>
+                    </div>
+                    <button class="btn-icon" title="Notificações">
+                        <i data-lucide="bell"></i>
                     </button>
-                    <button class="btn-header-toggle" id="btn-toggle-json" title="Abrir Inspetor JSON">
-                        <i data-lucide="braces"></i>
-                        <span>JSON</span>
-                    </button>
-                    <button class="btn-header-toggle" id="btn-open-logs" title="Ver logs de requisições recebidas/enviadas">
-                        <i data-lucide="scroll-text"></i>
-                        <span>Logs</span>
-                    </button>
+                    <div class="header-avatar" title="Usuário">
+                        <i data-lucide="user"></i>
+                    </div>
                 </div>
             </header>
 
@@ -107,6 +146,10 @@
                             <label for="setting-webhook-url">URL do Webhook Real</label>
                             <input type="url" id="setting-webhook-url" class="form-input" placeholder="https://seu-n8n.domain/webhook/..." />
                         </div>
+                        <div class="form-group">
+                            <label for="input-workflow-hint">workflow_hint (opcional)</label>
+                            <input type="text" id="input-workflow-hint" class="form-input" placeholder="ex: rota_suporte, vendas_agro" />
+                        </div>
                         <button type="button" class="btn-demo btn-demo-info" id="btn-demo-status">
                             <i data-lucide="play-circle" class="icon-small"></i>
                             <span>Simular Logs de Status</span>
@@ -117,7 +160,10 @@
                         </button>
                     </div>
                     <div class="settings-col">
-                        <h4 class="settings-title">Dados do Tenant &amp; Usuário</h4>
+                        <h4 class="settings-title settings-title-row">
+                            <span>Dados do Tenant &amp; Usuário</span>
+                            <button type="button" class="btn-reset-tenant" id="btn-reset-tenant-user" title="Restaura tenant_id, tenant_name e user_id para os valores do usuário de teste André Moura">Usar André (padrão)</button>
+                        </h4>
                         <div class="settings-row">
                             <div class="form-group">
                                 <label for="setting-tenant-id">tenant_id</label>
@@ -131,7 +177,7 @@
                         <div class="settings-row">
                             <div class="form-group">
                                 <label for="setting-user-id">user_id</label>
-                                <input type="text" id="setting-user-id" class="form-input" value="usr_leads_tester" />
+                                <input type="text" id="setting-user-id" class="form-input" value="andre_moura_a2w" />
                             </div>
                             <div class="form-group">
                                 <label for="setting-session-id">session_id</label>
@@ -161,32 +207,54 @@
 
             <!-- Histórico de Mensagens -->
             <div class="messages-container" id="messages-container">
-                <!-- Seletor inicial ou mensagens reais -->
+                <!-- Tela inicial ou mensagens reais -->
                 <div class="welcome-container" id="welcome-container">
-                    <div class="welcome-card">
-                        <i data-lucide="bot" class="welcome-icon"></i>
-                        <h2>Teste de Workflows Lara Leads</h2>
-                        <p>Crie um novo chat na barra lateral para simular o envio de payloads JSON para suas automações e conferir as respostas integradas.</p>
-                        <button class="btn-create-welcome" id="btn-create-welcome">
-                            <i data-lucide="plus-circle"></i>
-                            Começar agora
-                        </button>
+                    <div class="hero-card">
+                        <div class="hero-icon">
+                            <i data-lucide="filter"></i>
+                        </div>
+                        <h2>Comece com um objetivo comercial</h2>
+                        <p>Prospecção B2B com cadência orientada por IA.</p>
+                        <div class="hero-suggestions">
+                            <button type="button" class="hero-suggestion-card" data-text="Buscar revendas agrícolas no oeste do Paraná com potencial para fertilizantes">
+                                <i data-lucide="map-pin"></i>
+                                <span>Buscar revendas agrícolas no oeste do Paraná com potencial para fertilizantes</span>
+                            </button>
+                            <button type="button" class="hero-suggestion-card" data-text="Encontrar distribuidores B2B com sinais de expansão nos últimos 90 dias">
+                                <i data-lucide="trending-up"></i>
+                                <span>Encontrar distribuidores B2B com sinais de expansão nos últimos 90 dias</span>
+                            </button>
+                            <button type="button" class="hero-suggestion-card" data-text="Mapear decisores de uma empresa alvo e sugerir abordagem comercial">
+                                <i data-lucide="users"></i>
+                                <span>Mapear decisores de uma empresa alvo e sugerir abordagem comercial</span>
+                            </button>
+                            <button type="button" class="hero-suggestion-card" data-text="Buscar decisores da empresa XPTO">
+                                <i data-lucide="search"></i>
+                                <span>Buscar decisores da empresa XPTO</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Rodapé de Input do Chat -->
             <footer class="chat-footer">
-                <div class="chat-input-wrapper">
-                    <!-- Inline Workflow Hint Helper -->
-                    <div class="workflow-hint-input-container">
-                        <i data-lucide="git-branch" class="hint-icon"></i>
-                        <input type="text" id="input-workflow-hint" placeholder="Workflow Hint (opcional, ex: rota_suporte, vendas_agro)..." />
-                    </div>
-                    <div class="chat-input-bar">
-                        <textarea id="chat-input" placeholder="Digite uma mensagem para simular o workflow..." rows="1" disabled></textarea>
-                        <button class="btn-send" id="btn-send" disabled title="Enviar mensagem">
-                            <i data-lucide="send"></i>
+                <div class="chat-input-pill" id="chat-input-pill">
+                    <textarea id="chat-input" placeholder="Peça para a Lara buscar, refinar ou organizar uma prospecção..." rows="1"></textarea>
+                    <div class="chat-input-toolbar">
+                        <div class="chat-input-toolbar-left">
+                            <button type="button" class="input-icon-btn" title="Anexar arquivo (em breve)">
+                                <i data-lucide="paperclip"></i>
+                            </button>
+                            <button type="button" class="input-icon-btn" title="Gravar áudio (em breve)">
+                                <i data-lucide="mic"></i>
+                            </button>
+                            <button type="button" class="input-icon-btn" title="Enviar imagem (em breve)">
+                                <i data-lucide="image"></i>
+                            </button>
+                        </div>
+                        <button class="btn-send" id="btn-send" title="Enviar mensagem">
+                            <i data-lucide="arrow-up"></i>
                         </button>
                     </div>
                 </div>

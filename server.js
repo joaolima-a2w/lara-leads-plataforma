@@ -1,10 +1,20 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const db = require('./db');
+const supabase = require('./supabaseClient');
+const leadsCadenciaApi = require('./leadsCadenciaApi');
+const leadDetailApi = require('./leadDetailApi');
+const decisoresApi = require('./decisoresApi');
+const personalizacaoApi = require('./personalizacaoApi');
 
 const PORT = 3000;
 
-// In-memory queue to store async webhook responses from n8n
+// In-memory queue to store async webhook responses from n8n. The browser picks
+// these up via polling (GET /api/poll?chat_id=) instead of SSE — SSE doesn't
+// survive the move to Vercel serverless functions (no persistent connection
+// between invocations), so both the local server and the Vercel deployment
+// share the same polling contract (see api/poll.js for the Vercel side).
 const pendingResponses = {};
 const activeStatuses = {};
 const chatCosts = {};
@@ -300,7 +310,7 @@ const server = http.createServer((req, res) => {
 
                 setTimeout(() => {
                     delete activeStatuses[chat_id];
-                    
+
                     // Push final response to pending queue
                     if (!pendingResponses[chat_id]) {
                         pendingResponses[chat_id] = [];
@@ -352,6 +362,38 @@ const server = http.createServer((req, res) => {
         requestLogs.length = 0;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
+        return;
+    }
+
+    // --- Endpoint 1G: Poll de Atualizações do Chat (substitui o antigo /api/stream via SSE) ---
+    // URL: GET http://localhost:3000/api/poll?chat_id=xxxx
+    // Combina, numa única chamada, as 3 coisas que o front precisa saber periodicamente
+    // sobre um chat: mensagens novas (consume-on-read, como /api/pending-responses),
+    // a legenda de status atual, e o custo acumulado atual. Mesmo contrato do
+    // api/poll.js do deploy no Vercel (lá lendo do Supabase em vez de memória) — ver
+    // POLLING.md.
+    if (req.url.startsWith('/api/poll') && req.method === 'GET') {
+        const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+        const chat_id = parsedUrl.searchParams.get('chat_id');
+
+        if (!chat_id) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: true, message: 'O parametro chat_id e obrigatorio.' }));
+            return;
+        }
+
+        const messages = pendingResponses[chat_id] || [];
+        pendingResponses[chat_id] = []; // Consume/clear queue on read
+
+        const statusEntry = activeStatuses[chat_id] || { text: null, progress: null };
+        const costEntry = chatCosts[chat_id] || { total: 0, currency: 'BRL' };
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            messages,
+            status: { status: statusEntry.text, progress: statusEntry.progress },
+            cost: { total: costEntry.total, currency: costEntry.currency }
+        }));
         return;
     }
 
@@ -567,6 +609,227 @@ const server = http.createServer((req, res) => {
         }
     }
 
+    // --- Endpoint: Lista de leads em cadência (tela "Meus Leads em Cadência") ---
+    // URL: GET http://localhost:3000/api/leads-cadencia?page=1&pageSize=20&search=...&status=ativo
+    if (req.url.startsWith('/api/leads-cadencia/stats') && req.method === 'GET') {
+        leadsCadenciaApi.getLeadsCadenciaStats()
+            .then((stats) => {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(stats));
+            })
+            .catch((err) => {
+                console.error('[leads-cadencia] Falha ao calcular stats:', err.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: true, message: err.message }));
+            });
+        return;
+    }
+
+    // --- Endpoint: Detalhe de um lead em cadência (linha do tempo + outros contatos) ---
+    // URL: GET http://localhost:3000/api/leads-cadencia/<id>/detail
+    // (Checado ANTES da rota geral de listagem abaixo — toda URL de detalhe também
+    // começa com "/api/leads-cadencia", então precisa vencer o startsWith mais genérico.)
+    const detailMatch = req.url.match(/^\/api\/leads-cadencia\/([^/]+)\/detail(?:\?.*)?$/);
+    if (detailMatch && req.method === 'GET') {
+        const leadCadenciaId = decodeURIComponent(detailMatch[1]);
+        leadDetailApi.getLeadDetail(leadCadenciaId)
+            .then((detail) => {
+                if (!detail) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: true, message: 'Lead não encontrado.' }));
+                    return;
+                }
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(detail));
+            })
+            .catch((err) => {
+                console.error('[leads-cadencia] Falha ao buscar detalhe:', err.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: true, message: err.message }));
+            });
+        return;
+    }
+
+    // --- Endpoint: Salvar anotação (ação/feedback) de uma etapa da cadência ---
+    // URL: POST http://localhost:3000/api/leads-cadencia/<id>/etapas/<etapa>/notes
+    // Body: { "acao": "...", "feedback": "..." }
+    const notesMatch = req.url.match(/^\/api\/leads-cadencia\/([^/]+)\/etapas\/(\d+)\/notes$/);
+    if (notesMatch && req.method === 'POST') {
+        const leadCadenciaId = decodeURIComponent(notesMatch[1]);
+        const etapaCadencia = parseInt(notesMatch[2], 10);
+        let body = '';
+        req.on('data', chunk => { body += chunk.toString(); });
+        req.on('end', () => {
+            let payload;
+            try {
+                payload = JSON.parse(body || '{}');
+            } catch (e) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: true, message: 'Formato JSON inválido.' }));
+                return;
+            }
+            leadDetailApi.saveStageNote(leadCadenciaId, etapaCadencia, payload)
+                .then((saved) => {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, note: saved }));
+                })
+                .catch((err) => {
+                    console.error('[leads-cadencia] Falha ao salvar anotação:', err.message);
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: true, message: err.message }));
+                });
+        });
+        return;
+    }
+
+    // --- Endpoint: Parar / Concluir cadência, ou resolver uma tarefa manual pendente ---
+    // URL: POST http://localhost:3000/api/leads-cadencia/<id>/status
+    // Body: { "action": "parar" | "concluir" | "manual_concluida" }
+    const statusMatch = req.url.match(/^\/api\/leads-cadencia\/([^/]+)\/status$/);
+    if (statusMatch && req.method === 'POST') {
+        const leadCadenciaId = decodeURIComponent(statusMatch[1]);
+        let body = '';
+        req.on('data', chunk => { body += chunk.toString(); });
+        req.on('end', () => {
+            let payload;
+            try {
+                payload = JSON.parse(body || '{}');
+            } catch (e) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: true, message: 'Formato JSON inválido.' }));
+                return;
+            }
+            leadDetailApi.updateLeadCadenciaStatus(leadCadenciaId, payload.action)
+                .then((result) => {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, ...result }));
+                })
+                .catch((err) => {
+                    console.error('[leads-cadencia] Falha ao atualizar status:', err.message);
+                    res.writeHead(err.message.includes('desconhecida') || err.message.includes('não encontrado') ? 400 : 500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: true, message: err.message }));
+                });
+        });
+        return;
+    }
+
+    if (req.url.startsWith('/api/leads-cadencia') && req.method === 'GET') {
+        const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+        const page = parseInt(parsedUrl.searchParams.get('page'), 10) || 1;
+        const pageSize = parseInt(parsedUrl.searchParams.get('pageSize'), 10) || 20;
+        const search = parsedUrl.searchParams.get('search') || '';
+        const status = parsedUrl.searchParams.get('status') || '';
+
+        leadsCadenciaApi.getLeadsCadencia({ page, pageSize, search, status })
+            .then((result) => {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            })
+            .catch((err) => {
+                console.error('[leads-cadencia] Falha ao listar:', err.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: true, message: err.message }));
+            });
+        return;
+    }
+
+    // --- Endpoint: Estatísticas da tela "Contatos" (decisores) ---
+    // URL: GET http://localhost:3000/api/decisores/stats
+    if (req.url.startsWith('/api/decisores/stats') && req.method === 'GET') {
+        decisoresApi.getDecisoresStats()
+            .then((stats) => {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(stats));
+            })
+            .catch((err) => {
+                console.error('[decisores] Falha ao calcular stats:', err.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: true, message: err.message }));
+            });
+        return;
+    }
+
+    // --- Endpoint: Lista de contatos (decisores) para a tela "Contatos" ---
+    // URL: GET http://localhost:3000/api/decisores?page=1&pageSize=20&search=...
+    if (req.url.startsWith('/api/decisores') && req.method === 'GET') {
+        const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+        const page = parseInt(parsedUrl.searchParams.get('page'), 10) || 1;
+        const pageSize = parseInt(parsedUrl.searchParams.get('pageSize'), 10) || 20;
+        const search = parsedUrl.searchParams.get('search') || '';
+
+        decisoresApi.getDecisores({ page, pageSize, search })
+            .then((result) => {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            })
+            .catch((err) => {
+                console.error('[decisores] Falha ao listar:', err.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: true, message: err.message }));
+            });
+        return;
+    }
+
+    // --- Endpoint: Setups configurados (tabela `personalizacao`) para a tela "Configuração de Setup" ---
+    // URL: GET http://localhost:3000/api/personalizacao?user_id=andre_moura_a2w
+    if (req.url.startsWith('/api/personalizacao') && req.method === 'GET') {
+        const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+        const userId = parsedUrl.searchParams.get('user_id');
+
+        if (!userId) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: true, message: 'O parametro user_id e obrigatorio.' }));
+            return;
+        }
+
+        personalizacaoApi.getPersonalizacoes(userId)
+            .then((result) => {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            })
+            .catch((err) => {
+                console.error('[personalizacao] Falha ao buscar setups:', err.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: true, message: err.message }));
+            });
+        return;
+    }
+
+    // --- Endpoint: Supabase connectivity check (recomendado — via HTTPS) ---
+    // URL: GET http://localhost:3000/api/supabase/health
+    if (req.url === '/api/supabase/health' && req.method === 'GET') {
+        supabase.checkConnection()
+            .then((result) => {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: true, ...result }));
+            })
+            .catch((err) => {
+                console.error('[supabase] Falha no health check:', err.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: false, error: err.message }));
+            });
+        return;
+    }
+
+    // --- Endpoint: Database connectivity check (Postgres direto, opcional) ---
+    // URL: GET http://localhost:3000/api/db/health
+    // Confirma se o .env está configurado corretamente e o Postgres está alcançável.
+    if (req.url === '/api/db/health' && req.method === 'GET') {
+        db.checkConnection()
+            .then((row) => {
+                const okResponse = { ok: true, database: row.database, server_time: row.now };
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(okResponse));
+            })
+            .catch((err) => {
+                console.error('[db] Falha no health check:', err.message);
+                const errResponse = { ok: false, error: err.message };
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(errResponse));
+            });
+        return;
+    }
+
     // --- Endpoint: Get last error JSON ---
     // URL: GET http://localhost:3000/api/last-error
     if (req.url === '/api/last-error' && req.method === 'GET') {
@@ -695,7 +958,11 @@ const server = http.createServer((req, res) => {
     }
 
     // --- Static File Server ---
-    let filePath = req.url === '/' ? '/index.html' : req.url;
+    // Strip the query string (e.g. "?id=...") before resolving to a file on disk —
+    // otherwise a URL like "/lead-detail.html?id=xyz" gets looked up literally
+    // (including the "?id=xyz" part) and always 404s.
+    const urlWithoutQuery = req.url.split('?')[0];
+    let filePath = urlWithoutQuery === '/' ? '/index.html' : urlWithoutQuery;
     // Prevent directory traversal attacks
     filePath = path.normalize(filePath).replace(/^(\.\.[\/\\])+/, '');
     const fullPath = path.join(__dirname, filePath);
@@ -731,6 +998,7 @@ server.listen(PORT, () => {
     console.log(`👉 Acesse no navegador: http://localhost:${PORT}`);
     console.log(`🔌 Webhook Teste do Workflow: http://localhost:${PORT}/api/mock-workflow`);
     console.log(`🔌 Webhook de Resposta n8n (Async Callback): http://localhost:${PORT}/api/callback`);
-    console.log(`💰 Webhook de Custo em Tempo Real: http://localhost:${PORT}/api/cost\n`);
+    console.log(`💰 Webhook de Custo em Tempo Real: http://localhost:${PORT}/api/cost`);
+    console.log(`📡 Poll de Atualizações do Chat: http://localhost:${PORT}/api/poll?chat_id=xxxx\n`);
 });
 

@@ -44,7 +44,8 @@ Cada chat no `state.chats` guarda:
 idle ──(usuário envia msg / clica card)──▶ sending
 sending ──(resposta síncrona do webhook, modo sync/mock)──▶ idle
 sending ──(erro na chamada)──▶ idle (+ mensagem de erro no chat)
-sending ──(modo custom-webhook = assíncrono)──▶ waiting
+sending ──(modo custom-webhook, resposta síncrona SEM status:"processing")──▶ idle (a resposta já é a final)
+sending ──(modo custom-webhook, resposta síncrona COM status:"processing")──▶ waiting (mais coisa vem depois via /api/callback)
 waiting ──(/api/callback chega com status:"processing")──▶ waiting (adiciona mensagem, mantém travado)
 waiting ──(/api/callback chega com status:"ok")──▶ idle (adiciona mensagem, libera o chat)
 waiting ──(/api/status ou /api/callback sinaliza status:"finalizado")──▶ closed
@@ -79,7 +80,7 @@ Todos os endpoints continuam prefixados por `http://localhost:3000` (ou pela URL
 - `status: "processing"` → mensagem aparece no chat, `workflowState` continua `waiting` (typing indicator).
 - `status: "ok"` → mensagem aparece, `workflowState` volta pra `idle`.
 - `status: "finalizado"` → mensagem aparece, `workflowState` vai pra `closed` (permanente).
-- Enfileira em `pendingResponses[chat_id]`, consumido (e limpo) pelo polling do front-end em `GET /api/pending-responses`.
+- Enfileira em `pendingResponses[chat_id]`, lido pelo front via polling (`GET /api/poll?chat_id=`) — ver [POLLING.md](POLLING.md). `GET /api/pending-responses` continua existindo mas não é mais consumido pelo front.
 
 ### 4.2 `POST /api/status` — legenda de progresso (não é a resposta final)
 ```json
@@ -92,7 +93,7 @@ Todos os endpoints continuam prefixados por `http://localhost:3000` (ou pela URL
 - **Atenção ao seu workflow:** não use os textos `"ok"`, `"processing"` ou `"finalizado"` como legenda de progresso "normal" — são palavras-chave reservadas em ambos os endpoints.
 
 ### 4.3 `GET /api/status?chat_id=` — leitura da legenda/sinal atual
-Retorna `{ chat_id, status, progress }` (os valores mais recentes setados via 4.2, ou `null`/`null`). Consumido pelo polling do front a cada 1.5s.
+Retorna `{ chat_id, status, progress }` (os valores mais recentes setados via 4.2, ou `null`/`null`). Hoje só usado pra leitura pontual — o front recebe as atualizações via polling (`GET /api/poll?chat_id=`, ver [POLLING.md](POLLING.md)).
 
 ### 4.4 `POST /api/cost` — custo acumulado em tempo real (só o valor final, sem categorias)
 ```json
@@ -103,10 +104,13 @@ Retorna `{ chat_id, status, progress }` (os valores mais recentes setados via 4.
 - `currency`, se enviada, atualiza a moeda do chat. **Padrão de todo chat novo: BRL** (não precisa mandar se for BRL).
 
 ### 4.5 `GET /api/cost?chat_id=` — leitura do custo acumulado
-Retorna `{ chat_id, total, currency }`. Polling a cada 1.5s atualiza o badge 💰.
+Retorna `{ chat_id, total, currency }`. Badge 💰 é atualizado em tempo real via SSE, não por polling nesse endpoint.
 
 ### 4.6 `GET /api/pending-responses?chat_id=` — fila de respostas assíncronas
-Retorna `{ messages: [...] }` e **limpa a fila daquele chat_id** no mesmo request (consume-on-read). Polling a cada 1.5s.
+Retorna `{ messages: [...] }` e **limpa a fila daquele chat_id** no mesmo request (consume-on-read). Mantido pra compatibilidade/depuração; o front consome as respostas via SSE (seção 4.12).
+
+### 4.12 `GET /api/poll?chat_id=` — leitura combinada de mensagens/status/custo
+Numa única chamada, devolve `{ messages, status, cost }`: mensagens novas (consume-on-read, como `GET /api/pending-responses`), a legenda de status atual e o custo acumulado atual. O front chama isso a cada ~2s enquanto um chat está aberto. Detalhes completos (motivação, por que não é mais SSE, trade-offs) em [POLLING.md](POLLING.md).
 
 ### 4.7 `POST /api/proxy-webhook` — bypass de CORS pro webhook real
 ```json
@@ -126,7 +130,7 @@ Recebe erro (JSON estruturado do n8n ou HTML cru), guarda em memória, e serve u
 ### 4.11 Servidor de arquivos estáticos
 Serve `index.html`/`app.js`/`style.css`/etc. da própria pasta do projeto, com proteção básica contra directory traversal.
 
-**Decisão confirmada:** todo estado do servidor (`pendingResponses`, `activeStatuses`, `chatCosts`, `lastJsonError`) continua **só em memória** — reiniciar o processo Node zera tudo. Mantido assim de propósito (é só um sandbox de teste).
+**Decisão confirmada:** rodando localmente (`node server.js`), todo estado do servidor (`pendingResponses`, `activeStatuses`, `chatCosts`, `lastJsonError`) continua **só em memória** — reiniciar o processo Node zera tudo. Mantido assim de propósito (é só um sandbox de teste). **No deploy do Vercel** esse mesmo estado é persistido no Supabase em vez de memória (funções serverless não compartilham memória entre invocações) — ver [DEPLOY_VERCEL.md](DEPLOY_VERCEL.md) e `sandboxStore.js`.
 
 ---
 

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lara Leads - Detalhe do Lead</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="leads.css">
+    <link rel="stylesheet" href="lead-detail.css">
+</head>
+<body>
+    <div class="app-container">
+        <nav class="icon-rail">
+            <div class="rail-brand" title="Lara Leads">
+                <i data-lucide="sprout"></i>
+            </div>
+            <div class="rail-nav">
+                <a class="rail-btn active" href="leads.html" title="Meus Leads em Cadência">
+                    <i data-lucide="layout-list"></i>
+                </a>
+                <a class="rail-btn" href="index.html" title="Lara Leads (chat)">
+                    <i data-lucide="message-square"></i>
+                </a>
+                <a class="rail-btn" href="contatos.html" title="Contatos">
+                    <i data-lucide="users"></i>
+                </a>
+                <a class="rail-btn" href="setup.html" title="Configuração de Setup">
+                    <i data-lucide="settings"></i>
+                </a>
+            </div>
+            <div class="rail-footer">
+                <button class="btn-icon" id="btn-toggle-theme" title="Alternar Tema (Escuro/Claro)">
+                    <i data-lucide="moon"></i>
+                </button>
+            </div>
+        </nav>
+
+        <main class="leads-area">
+            <header class="leads-topbar">
+                <div class="leads-breadcrumb">
+                    <a href="leads.html" class="breadcrumb-link">Meus Leads em Cadência</a>
+                    <i data-lucide="chevron-right" class="icon-small"></i>
+                    <span class="current" id="breadcrumb-lead-name">Carregando...</span>
+                </div>
+                <div class="leads-topbar-right">
+                    <button class="btn-icon" title="Notificações">
+                        <i data-lucide="bell"></i>
+                    </button>
+                    <div class="header-avatar" title="Usuário">
+                        <i data-lucide="user"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="leads-content" id="detail-content">
+                <div class="table-loading">Carregando detalhe do lead...</div>
+            </div>
+        </main>
+    </div>
+
+    <script src="lead-detail.js"></script>
+</body>
+</html>

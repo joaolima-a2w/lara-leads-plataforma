@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lara Leads - Configuração de Setup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="leads.css">
+    <link rel="stylesheet" href="setup.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Trilho de Navegação (mesmo das outras telas da plataforma) -->
+        <nav class="icon-rail">
+            <div class="rail-brand" title="Lara Leads">
+                <i data-lucide="sprout"></i>
+            </div>
+            <div class="rail-nav">
+                <a class="rail-btn" href="leads.html" title="Meus Leads em Cadência">
+                    <i data-lucide="layout-list"></i>
+                </a>
+                <a class="rail-btn" href="index.html" title="Lara Leads (chat)">
+                    <i data-lucide="message-square"></i>
+                </a>
+                <a class="rail-btn" href="contatos.html" title="Contatos">
+                    <i data-lucide="users"></i>
+                </a>
+                <button class="rail-btn active" title="Configuração de Setup">
+                    <i data-lucide="settings"></i>
+                </button>
+            </div>
+            <div class="rail-footer">
+                <button class="btn-icon" id="btn-toggle-theme" title="Alternar Tema (Escuro/Claro)">
+                    <i data-lucide="moon"></i>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Área Principal -->
+        <main class="leads-area">
+            <header class="leads-topbar">
+                <div class="leads-breadcrumb">
+                    <span>Lara Leads</span>
+                    <i data-lucide="chevron-right" class="icon-small"></i>
+                    <span class="current">Configuração de Setup</span>
+                </div>
+                <div class="leads-topbar-right">
+                    <button class="btn-icon" title="Notificações">
+                        <i data-lucide="bell"></i>
+                    </button>
+                    <div class="header-avatar" title="Usuário">
+                        <i data-lucide="user"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="leads-content">
+                <!-- Contexto do usuário de teste (tabela `users` / `tenants`) -->
+                <div class="setup-user-card" id="setup-user-card">
+                    <div class="setup-user-icon"><i data-lucide="user-circle"></i></div>
+                    <div class="setup-user-info">
+                        <span class="setup-user-name" id="setup-user-name">Carregando...</span>
+                        <span class="setup-user-meta" id="setup-user-meta">—</span>
+                    </div>
+                    <button class="btn-icon" id="btn-refresh-setups" title="Atualizar">
+                        <i data-lucide="refresh-cw"></i>
+                    </button>
+                </div>
+
+                <!-- Cards de Estatísticas -->
+                <div class="stat-grid" id="stat-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-icon info"><i data-lucide="layers"></i></div>
+                        <div class="stat-card-body">
+                            <span class="stat-card-value" id="stat-total-setups">—</span>
+                            <span class="stat-card-label">Setups Configurados</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-icon success"><i data-lucide="check-circle"></i></div>
+                        <div class="stat-card-body">
+                            <span class="stat-card-value" id="stat-ativos">—</span>
+                            <span class="stat-card-label">Setups Ativos</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-icon warning"><i data-lucide="package"></i></div>
+                        <div class="stat-card-body">
+                            <span class="stat-card-value" id="stat-produtos">—</span>
+                            <span class="stat-card-label">Linhas de Produto</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-icon neutral"><i data-lucide="radio"></i></div>
+                        <div class="stat-card-body">
+                            <span class="stat-card-value" id="stat-canais">—</span>
+                            <span class="stat-card-label">Com Canais Configurados</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de Setups (tabela `personalizacao`) -->
+                <div id="setups-container">
+                    <div class="setup-loading">Carregando setups configurados...</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="setup.js"></script>
+</body>
+</html>

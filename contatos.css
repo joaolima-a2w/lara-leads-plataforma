@@ -1,0 +1,52 @@
+/* ============ Tela "Contatos" (Decisores) ============ */
+
+.cell-name {
+    font-weight: 600;
+}
+
+.cell-linkedin-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-tertiary);
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.cell-linkedin-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+.cell-linkedin-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.cell-linkedin-empty {
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
+}
+
+.cell-contact-value {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    align-items: flex-start;
+}
+
+.cell-contact-value .cell-contact-text {
+    font-size: 0.82rem;
+    color: var(--text-primary);
+}
+
+.cell-contact-empty {
+    color: var(--text-tertiary);
+    font-size: 0.82rem;
+}

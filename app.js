@@ -41,7 +41,7 @@ const defaultSettings = {
     webhookUrl: 'https://a2w.app.n8n.cloud/webhook-test/dd8d25e1-3382-49b6-8d22-6621d57633b8',
     tenant_id: 'A2W',
     tenant_name: 'A2W Tecnologia',
-    user_id: 'USR-0001-Q7XK',
+    user_id: 'andre_moura_a2w',
     session_id: 'SESS-123',
     ip: '200.100.50.1',
     page: '/app/minerador',
@@ -63,7 +63,7 @@ function loadState() {
         if (savedState) {
             const parsed = JSON.parse(savedState);
             // Merge settings to handle structure updates
-            state.chats = parsed.chats || [];
+            state.chats = (parsed.chats || []).map(c => ({ pinned: false, ...c }));
             state.activeChatId = parsed.activeChatId || null;
             state.settings = { ...defaultSettings, ...(parsed.settings || {}) };
         }
@@ -83,13 +83,17 @@ function saveState() {
 // DOM Elements
 const sidebar = document.getElementById('sidebar');
 const chatListContainer = document.getElementById('chat-list');
+const chatListPinnedContainer = document.getElementById('chat-list-pinned');
+const chatGroupPinned = document.getElementById('chat-group-pinned');
+const sidebarSearchInput = document.getElementById('sidebar-search-input');
+const btnCollapseSidebar = document.getElementById('btn-collapse-sidebar');
+const railBtnChat = document.getElementById('rail-btn-chat');
 const messagesContainer = document.getElementById('messages-container');
 const welcomeContainer = document.getElementById('welcome-container');
 const chatInput = document.getElementById('chat-input');
 const inputWorkflowHint = document.getElementById('input-workflow-hint');
 const btnSend = document.getElementById('btn-send');
 const btnNewChat = document.getElementById('btn-new-chat');
-const btnCreateWelcome = document.getElementById('btn-create-welcome');
 const btnToggleSettings = document.getElementById('btn-toggle-settings');
 const btnToggleJson = document.getElementById('btn-toggle-json');
 const btnOpenLogs = document.getElementById('btn-open-logs');
@@ -107,6 +111,10 @@ const btnCloseDetails = document.getElementById('btn-close-details');
 const apiStatusText = document.getElementById('api-status-text');
 const btnDemoStatus = document.getElementById('btn-demo-status');
 const btnDemoError = document.getElementById('btn-demo-error');
+const chatStatusPill = document.getElementById('chat-status-pill');
+
+// Sidebar search state (client-side filter over chat titles)
+let sidebarSearchQuery = '';
 
 // Form Settings Inputs
 const settingApiMode = document.getElementById('setting-api-mode');
@@ -119,6 +127,7 @@ const settingSessionId = document.getElementById('setting-session-id');
 const settingIp = document.getElementById('setting-ip');
 const settingPage = document.getElementById('setting-page');
 const settingUserAgent = document.getElementById('setting-user-agent');
+const btnResetTenantUser = document.getElementById('btn-reset-tenant-user');
 
 // Code Panels
 const jsonRequestCode = document.getElementById('json-request');
@@ -201,8 +210,49 @@ function isLocked(chatObj) {
     return !chatObj || chatObj.workflowState !== 'idle';
 }
 
+// Applies a workflow's reported status to a chat, no matter which channel it arrived
+// through (sync HTTP response, or async /api/callback / /api/status — both picked up via
+// polling, see startPolling()). "finalizado" always wins and is sticky: once a chat is closed, no later
+// message can reopen it — e.g. n8n commonly fires /api/status "finalizado" and THEN
+// /api/callback with the final reply, and that reply's own status defaults to "ok", which
+// must not undo the closure. Even an HTML reply (a card, a preview, any rendered UI), which
+// would otherwise unlock the chat as "waiting on the user", stays locked once closed.
+function applyWorkflowStatus(chatObj, status, replyText) {
+    const normalizedStatus = String(status || 'ok').trim().toLowerCase();
+    const wasAlreadyClosed = chatObj.workflowState === 'closed';
+    if (normalizedStatus === 'finalizado' || wasAlreadyClosed) {
+        chatObj.workflowState = 'closed';
+        chatObj.currentStatusText = null;
+        chatObj.currentStatusProgress = null;
+        if (!wasAlreadyClosed) {
+            chatObj.messages.push({
+                message_id: generateUUID(),
+                sender: 'system',
+                text: 'Conversa finalizada pelo workflow. Este chat não pode mais enviar ou receber mensagens.',
+                timestamp: new Date().toISOString()
+            });
+        }
+        return true;
+    }
+    if (normalizedStatus === 'processing' && !isHtmlReply(replyText)) {
+        chatObj.workflowState = 'waiting';
+    } else {
+        chatObj.workflowState = 'idle';
+        chatObj.currentStatusText = null;
+        chatObj.currentStatusProgress = null;
+    }
+    return false;
+}
+
+// Shared theme key read/written by every page of the platform (chat, leads, etc.) so
+// switching the theme in one place is reflected everywhere else — see leads.js.
+const SHARED_THEME_KEY = 'lara_leads_theme';
+
 // Set visual theme
 function updateThemeUI() {
+    const sharedTheme = localStorage.getItem(SHARED_THEME_KEY);
+    if (sharedTheme) state.settings.theme = sharedTheme;
+
     if (state.settings.theme === 'dark') {
         document.body.setAttribute('data-theme', 'dark');
         btnToggleTheme.innerHTML = '<i data-lucide="sun"></i>';
@@ -237,6 +287,27 @@ function initPanels() {
         });
     }
 
+    // Sidebar search filter (client-side, over chat titles)
+    if (sidebarSearchInput) {
+        sidebarSearchInput.addEventListener('input', () => {
+            sidebarSearchQuery = sidebarSearchInput.value;
+            renderSidebar();
+        });
+    }
+
+    // Collapse/expand the "Conversas" panel — the icon rail stays visible either way.
+    // Clicking the rail's chat icon re-opens it if it was collapsed.
+    if (btnCollapseSidebar) {
+        btnCollapseSidebar.addEventListener('click', () => {
+            sidebar.classList.add('collapsed');
+        });
+    }
+    if (railBtnChat) {
+        railBtnChat.addEventListener('click', () => {
+            sidebar.classList.remove('collapsed');
+        });
+    }
+
     if (detailsOverlay) {
         detailsOverlay.addEventListener('click', () => closeDetailsPanel());
     }
@@ -252,6 +323,7 @@ function initPanels() {
     // Theme toggle click
     btnToggleTheme.addEventListener('click', () => {
         state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem(SHARED_THEME_KEY, state.settings.theme);
         saveState();
         updateThemeUI();
     });
@@ -350,6 +422,17 @@ function bindSettingsEvents() {
         });
         input.addEventListener('input', saveSettingsFromUI);
     });
+
+    // Atalho pra corrigir o caso recorrente de o localStorage já ter tenant_id/user_id
+    // de outro teste (ex.: teste_multisetup_001) — restaura pro usuário de teste padrão
+    // (André Moura / tenant A2W) sem precisar editar os 3 campos um por um.
+    btnResetTenantUser.addEventListener('click', () => {
+        state.settings.tenant_id = defaultSettings.tenant_id;
+        state.settings.tenant_name = defaultSettings.tenant_name;
+        state.settings.user_id = defaultSettings.user_id;
+        loadSettingsToUI();
+        saveState();
+    });
 }
 
 // Create new chat
@@ -374,7 +457,8 @@ function createNewChat(title = "Novo chat") {
         costCurrency: 'BRL',
         workflowState: 'idle',
         currentStatusText: null,
-        currentStatusProgress: null
+        currentStatusProgress: null,
+        pinned: false
     };
 
     state.chats.unshift(newChatObj);
@@ -405,6 +489,16 @@ function deleteChat(id, event) {
     }
 }
 
+// Toggle whether a chat is pinned to the top "Fixado" group in the sidebar
+function togglePinChat(id, event) {
+    if (event) event.stopPropagation();
+    const chatObj = state.chats.find(c => c.id === id);
+    if (!chatObj) return;
+    chatObj.pinned = !chatObj.pinned;
+    saveState();
+    renderSidebar();
+}
+
 // Rename active chat
 function renameActiveChat(newTitle) {
     const chatObj = getActiveChat();
@@ -426,6 +520,22 @@ function formatCost(total, currency) {
         }).format(total);
     }
     return `${total.toFixed(6)} ${currency}`;
+}
+
+// Reflect a chat's workflowState as the small pill next to the header title
+// ("Pronto"/"Enviando..."/"Processando..."/"Finalizado"), matching the target design's
+// "Já pronto" badge. With no active chat (welcome/hero screen), defaults to idle/"Pronto".
+function updateHeaderStatusPill(chatObj) {
+    if (!chatStatusPill) return;
+    const STATUS_MAP = {
+        idle: { cls: 'idle', text: 'Pronto' },
+        sending: { cls: 'busy', text: 'Enviando...' },
+        waiting: { cls: 'busy', text: 'Processando...' },
+        closed: { cls: 'closed', text: 'Finalizado' }
+    };
+    const info = STATUS_MAP[chatObj ? chatObj.workflowState : 'idle'] || STATUS_MAP.idle;
+    chatStatusPill.className = `status-pill ${info.cls}`;
+    chatStatusPill.querySelector('.status-pill-text').textContent = info.text;
 }
 
 // Render the real-time cost badge in the chat header — a single accumulated total
@@ -479,13 +589,18 @@ function selectChat(id) {
 
 // Show welcome view
 function renderWelcomeScreen() {
+    stopPolling();
     welcomeContainer.style.display = 'flex';
     chatIdBadge.style.display = 'none';
     chatCostBadge.style.display = 'none';
-    activeChatTitleInput.value = 'Nenhum chat ativo';
+    activeChatTitleInput.value = 'Lara Leads';
     activeChatTitleInput.disabled = true;
-    chatInput.disabled = true;
-    btnSend.disabled = true;
+    // The composer stays enabled here on purpose: typing/sending directly from the hero
+    // screen (or clicking a suggestion card) creates a new chat on the fly — see
+    // handleSendMessage() and the hero-suggestion-card click handler below.
+    chatInput.disabled = false;
+    btnSend.disabled = false;
+    updateHeaderStatusPill(null);
 
     // Clear message feed and details panel views
     messagesContainer.innerHTML = '';
@@ -495,52 +610,74 @@ function renderWelcomeScreen() {
     jsonResponseCode.innerHTML = syntaxHighlight({ status: "Aguardando chat ativo..." });
 }
 
-// Render the sidebar chat list
+// Build one chat list item's DOM node (used for both the "Fixado" and "Recentes" groups)
+function buildChatItemEl(chat) {
+    const chatItem = document.createElement('div');
+    chatItem.className = `chat-item ${chat.id === state.activeChatId ? 'active' : ''}`;
+    chatItem.setAttribute('data-id', chat.id);
+
+    // Find last real user/lara message preview — always plain text, truncated,
+    // never the raw HTML/script a Lara card message might contain.
+    const lastMsg = chat.messages.slice().reverse().find(m => m.sender !== 'system');
+    const previewText = lastMsg ? toPreviewText(lastMsg.text) : 'Sem mensagens';
+    const timestampText = lastMsg ? formatTime(lastMsg.timestamp) : formatTime(chat.createdAt);
+
+    chatItem.innerHTML = `
+        <div class="chat-item-content">
+            <div class="chat-item-header">
+                <span class="chat-item-title">${escapeHtml(chat.title)}</span>
+                <span class="chat-item-time">${timestampText}</span>
+            </div>
+            <div class="chat-item-preview">${escapeHtml(previewText)}</div>
+        </div>
+        <div class="chat-item-actions">
+            <button class="btn-pin-chat ${chat.pinned ? 'pinned' : ''}" title="${chat.pinned ? 'Desafixar' : 'Fixar'} conversa">
+                <i data-lucide="pin" class="icon-small"></i>
+            </button>
+            <button class="btn-delete-chat" title="Excluir Chat">
+                <i data-lucide="trash-2" class="icon-small"></i>
+            </button>
+        </div>
+    `;
+
+    // Click to select
+    chatItem.addEventListener('click', () => selectChat(chat.id));
+
+    // Pin/unpin button click handler
+    const btnPin = chatItem.querySelector('.btn-pin-chat');
+    btnPin.addEventListener('click', (e) => togglePinChat(chat.id, e));
+
+    // Delete button click handler
+    const btnDelete = chatItem.querySelector('.btn-delete-chat');
+    btnDelete.addEventListener('click', (e) => deleteChat(chat.id, e));
+
+    return chatItem;
+}
+
+// Render the sidebar chat list, split into "Fixado" (pinned) and "Recentes" groups,
+// filtered by whatever the user typed into the sidebar search box.
 function renderSidebar() {
     chatListContainer.innerHTML = '';
+    chatListPinnedContainer.innerHTML = '';
 
-    if (state.chats.length === 0) {
+    const query = sidebarSearchQuery.trim().toLowerCase();
+    const filtered = query
+        ? state.chats.filter(c => c.title.toLowerCase().includes(query))
+        : state.chats;
+
+    const pinned = filtered.filter(c => c.pinned);
+    const recent = filtered.filter(c => !c.pinned);
+
+    chatGroupPinned.style.display = pinned.length > 0 ? 'block' : 'none';
+    pinned.forEach(chat => chatListPinnedContainer.appendChild(buildChatItemEl(chat)));
+
+    if (filtered.length === 0) {
         chatListContainer.innerHTML = `
-            <div class="sidebar-empty">Nenhuma conversa criada</div>
+            <div class="sidebar-empty">${state.chats.length === 0 ? 'Nenhuma conversa criada' : 'Nenhuma conversa encontrada'}</div>
         `;
-        return;
+    } else {
+        recent.forEach(chat => chatListContainer.appendChild(buildChatItemEl(chat)));
     }
-
-    state.chats.forEach(chat => {
-        const chatItem = document.createElement('div');
-        chatItem.className = `chat-item ${chat.id === state.activeChatId ? 'active' : ''}`;
-        chatItem.setAttribute('data-id', chat.id);
-
-        // Find last real user/lara message preview — always plain text, truncated,
-        // never the raw HTML/script a Lara card message might contain.
-        const lastMsg = chat.messages.slice().reverse().find(m => m.sender !== 'system');
-        const previewText = lastMsg ? toPreviewText(lastMsg.text) : 'Sem mensagens';
-        const timestampText = lastMsg ? formatTime(lastMsg.timestamp) : formatTime(chat.createdAt);
-
-        chatItem.innerHTML = `
-            <div class="chat-item-content">
-                <div class="chat-item-header">
-                    <span class="chat-item-title">${escapeHtml(chat.title)}</span>
-                    <span class="chat-item-time">${timestampText}</span>
-                </div>
-                <div class="chat-item-preview">${escapeHtml(previewText)}</div>
-            </div>
-            <div class="chat-item-actions">
-                <button class="btn-delete-chat" title="Excluir Chat">
-                    <i data-lucide="trash-2" class="icon-small"></i>
-                </button>
-            </div>
-        `;
-
-        // Click to select
-        chatItem.addEventListener('click', () => selectChat(chat.id));
-
-        // Delete button click handler
-        const btnDelete = chatItem.querySelector('.btn-delete-chat');
-        btnDelete.addEventListener('click', (e) => deleteChat(chat.id, e));
-
-        chatListContainer.appendChild(chatItem);
-    });
 
     lucide.createIcons();
 }
@@ -556,6 +693,7 @@ function renderMessages() {
     const locked = isLocked(chatObj);
     chatInput.disabled = locked;
     btnSend.disabled = locked;
+    updateHeaderStatusPill(chatObj);
 
     messagesContainer.innerHTML = '';
 
@@ -704,11 +842,19 @@ function renderJsonPanel() {
 
 // --- API & Simulators Logic ---
 
-// Send user message (from the textarea)
+// Send user message (from the textarea). If no chat is active yet (the hero/welcome
+// screen), typing directly and sending creates a new chat on the fly first — same
+// entry point used by the hero-suggestion-card clicks below.
 async function handleSendMessage() {
-    const chatObj = getActiveChat();
     const text = chatInput.value.trim();
-    if (!chatObj || text === '' || isLocked(chatObj)) return;
+    if (text === '') return;
+
+    let chatObj = getActiveChat();
+    if (!chatObj) {
+        createNewChat();
+        chatObj = getActiveChat();
+    }
+    if (!chatObj || isLocked(chatObj)) return;
 
     const workflowHint = inputWorkflowHint.value.trim();
 
@@ -800,10 +946,11 @@ async function sendMessageText(text, extra = {}) {
     chatObj.currentStatusProgress = null;
     renderMessages();
 
-    // In custom-webhook mode (async), the sync response from n8n is just a generic ACK —
-    // the real answer arrives later via POST /api/callback (picked up by polling), possibly
-    // preceded by POST /api/status progress pings. So the sync response must never, by itself,
-    // unlock the chat in this mode.
+    // In custom-webhook mode, the workflow may answer synchronously (the HTTP response
+    // already carries the final reply) or asynchronously (this response is just an ACK,
+    // with the real answer arriving later via /api/callback or /api/status, picked up by polling).
+    // The sync response's own "status" field tells us which: "processing" means more is
+    // coming, anything else (including no status at all) means this reply is already final.
     const isAsyncMode = (state.settings.apiMode === 'custom-webhook');
 
     try {
@@ -813,12 +960,12 @@ async function sendMessageText(text, extra = {}) {
         chatObj.lastResponseJson = responseData;
 
         if (isAsyncMode) {
-            // An HTML reply (card, preview, etc.) always means "waiting on the user", not the
-            // workflow — unlock immediately even in async mode, regardless of any status field.
-            chatObj.workflowState = isHtmlReply(responseData.reply) ? 'idle' : 'waiting';
-
-            // If the sync response already contains a reply, show it as a Lara message.
-            // The final answer will still arrive later via /api/callback.
+            // If the sync response already contains a reply, show it as a Lara message first,
+            // then apply its status. "finalizado" always locks the chat afterwards — even for
+            // an HTML reply (card, preview, etc.) that would otherwise mean "waiting on the
+            // user". Anything else: an HTML reply unlocks immediately regardless of status; a
+            // plain "processing" reply keeps waiting for the real answer, which will still
+            // arrive later via /api/callback (picked up by polling).
             if (responseData.reply) {
                 chatObj.messages.push({
                     message_id: generateUUID(),
@@ -827,15 +974,20 @@ async function sendMessageText(text, extra = {}) {
                     timestamp: new Date().toISOString()
                 });
             }
+
+            const finalized = applyWorkflowStatus(chatObj, responseData.status, responseData.reply);
+            if (!finalized && isHtmlReply(responseData.reply)) {
+                chatObj.workflowState = 'idle';
+            }
         } else {
             // SYNC/MOCK MODE: response IS the final answer.
-            chatObj.workflowState = (responseData.status === 'processing' && !isHtmlReply(responseData.reply)) ? 'waiting' : 'idle';
             chatObj.messages.push({
                 message_id: generateUUID(),
                 sender: 'lara',
                 text: responseData.reply || 'Erro na resposta simulada do workflow.',
                 timestamp: new Date().toISOString()
             });
+            applyWorkflowStatus(chatObj, responseData.status, responseData.reply);
         }
 
         saveState();
@@ -953,128 +1105,132 @@ async function executeWorkflowCall(payload) {
     return await response.json();
 }
 
-// --- Long/Short Polling for Async n8n responses from Local Server ---
-let pollInterval = null;
+// --- Polling for Async n8n responses (replaces the old SSE /api/stream) ---
+// SSE needs a persistent connection between the browser and the server process —
+// that doesn't survive moving the backend to Vercel serverless functions (no shared
+// memory or open connection between invocations). Polling GET /api/poll every couple
+// seconds works identically whether the backend is the local server.js (in-memory) or
+// the Vercel functions (Supabase-backed) — see POLLING.md.
+const POLL_INTERVAL_MS = 2000;
+let chatPollTimer = null;
+
+function stopPolling() {
+    if (chatPollTimer) {
+        clearInterval(chatPollTimer);
+        chatPollTimer = null;
+    }
+}
+
+async function pollOnce(chatId) {
+    let url = `/api/poll?chat_id=${chatId}`;
+    if (window.location.protocol === 'file:') {
+        url = `http://localhost:3000/api/poll?chat_id=${chatId}`;
+    }
+
+    let data;
+    try {
+        const res = await fetch(url);
+        data = await res.json();
+    } catch (err) {
+        console.error('Erro ao consultar /api/poll:', err);
+        return;
+    }
+
+    // The active chat may have changed (or the chat list may have been cleared)
+    // while this request was in flight — never apply a stale poll's result.
+    const activeChatObj = getActiveChat();
+    if (!activeChatObj || activeChatObj.id !== chatId) return;
+
+    // 1) New async replies (equivalent to the old SSE "message" event)
+    let messagesChanged = false;
+    (data.messages || []).forEach(msg => {
+        if (activeChatObj.messages.some(m => m.message_id === msg.message_id)) return;
+
+        activeChatObj.messages.push({
+            message_id: msg.message_id || generateUUID(),
+            sender: 'lara',
+            text: msg.reply,
+            timestamp: msg.timestamp || new Date().toISOString()
+        });
+        activeChatObj.lastResponseJson = msg.raw_payload || msg;
+
+        // Drive workflowState from the callback's status field — "finalizado" always locks
+        // the chat, even for an HTML reply (a card, a preview, any rendered UI) that would
+        // otherwise unlock it as "waiting on the user".
+        const status = msg.status || (msg.raw_payload && msg.raw_payload.status) || 'ok';
+        applyWorkflowStatus(activeChatObj, status, msg.reply);
+        messagesChanged = true;
+    });
+
+    // 2) Real-time accumulated cost of this chat (not mock-browser) — old SSE "cost" event
+    let costChanged = false;
+    if (state.settings.apiMode !== 'mock-browser' && data.cost && data.cost.total !== undefined) {
+        const changed = data.cost.total !== activeChatObj.costTotal || data.cost.currency !== activeChatObj.costCurrency;
+        if (changed) {
+            activeChatObj.costTotal = data.cost.total || 0;
+            activeChatObj.costCurrency = data.cost.currency || 'BRL';
+            costChanged = true;
+        }
+    }
+
+    // 3) Progress caption + the permanent "finalizado" signal — old SSE "status" event
+    let statusChanged = false;
+    if (state.settings.apiMode !== 'mock-browser' && activeChatObj.workflowState !== 'closed' &&
+        data.status && data.status.status !== undefined && data.status.status !== null) {
+        const normalizedStatus = String(data.status.status).trim().toLowerCase();
+        const incomingProgress = (data.status.progress !== undefined && data.status.progress !== null && !Number.isNaN(Number(data.status.progress)))
+            ? Number(data.status.progress)
+            : null;
+
+        if (normalizedStatus === 'finalizado') {
+            activeChatObj.workflowState = 'closed';
+            activeChatObj.currentStatusText = null;
+            activeChatObj.currentStatusProgress = null;
+            activeChatObj.messages.push({
+                message_id: generateUUID(),
+                sender: 'system',
+                text: 'Conversa finalizada pelo workflow. Este chat não pode mais enviar ou receber mensagens.',
+                timestamp: new Date().toISOString()
+            });
+            statusChanged = true;
+        } else {
+            // A status ping is proof the workflow is still working, even if the initial
+            // sync ACK didn't say "processing" (e.g. it only sent a generic ack before
+            // continuing async) — re-lock the chat so the caption below has somewhere to render.
+            const stateChanged = activeChatObj.workflowState !== 'waiting';
+            const captionChanged = activeChatObj.currentStatusText !== data.status.status || activeChatObj.currentStatusProgress !== incomingProgress;
+            if (stateChanged || captionChanged) {
+                activeChatObj.workflowState = 'waiting';
+                activeChatObj.currentStatusText = data.status.status;
+                activeChatObj.currentStatusProgress = incomingProgress;
+                statusChanged = true;
+            }
+        }
+    }
+
+    if (messagesChanged || statusChanged) {
+        saveState();
+        renderMessages();
+        if (messagesChanged) renderJsonPanel();
+    }
+    if (costChanged) {
+        saveState();
+        renderCostBadge(activeChatObj, true);
+    }
+
+    // Once closed, nothing else can ever arrive for this chat — stop polling it.
+    if (activeChatObj.workflowState === 'closed') stopPolling();
+}
 
 function startPolling() {
-    if (pollInterval) clearInterval(pollInterval);
-    pollInterval = setInterval(async () => {
-        const chatObj = getActiveChat();
-        if (!chatObj) return;
+    stopPolling();
 
-        let url = `/api/pending-responses?chat_id=${chatObj.id}`;
-        if (window.location.protocol === 'file:') {
-            url = `http://localhost:3000/api/pending-responses?chat_id=${chatObj.id}`;
-        }
+    const chatObj = getActiveChat();
+    if (!chatObj || chatObj.workflowState === 'closed') return;
 
-        try {
-            const res = await fetch(url);
-            if (res.ok) {
-                const data = await res.json();
-                if (data && data.messages && data.messages.length > 0) {
-                    data.messages.forEach(msg => {
-                        const exists = chatObj.messages.some(m => m.message_id === msg.message_id);
-                        if (!exists) {
-                            chatObj.messages.push({
-                                message_id: msg.message_id || generateUUID(),
-                                sender: 'lara',
-                                text: msg.reply,
-                                timestamp: msg.timestamp || new Date().toISOString()
-                            });
-                            chatObj.lastResponseJson = msg.raw_payload || msg;
-
-                            // Drive workflowState from the callback's status field — unless the
-                            // reply itself is HTML (a card, a preview, any rendered UI), which
-                            // always means "waiting on the user", so it unlocks the chat no
-                            // matter what status was sent.
-                            const status = msg.status || (msg.raw_payload && msg.raw_payload.status) || 'ok';
-                            const normalizedStatus = String(status).trim().toLowerCase();
-                            if (normalizedStatus === 'finalizado') {
-                                chatObj.workflowState = 'closed';
-                                chatObj.currentStatusText = null;
-                                chatObj.currentStatusProgress = null;
-                            } else if (normalizedStatus === 'processing' && !isHtmlReply(msg.reply)) {
-                                chatObj.workflowState = 'waiting';
-                            } else {
-                                chatObj.workflowState = 'idle';
-                                chatObj.currentStatusText = null;
-                                chatObj.currentStatusProgress = null;
-                            }
-                        }
-                    });
-                    saveState();
-                    renderMessages();
-                    renderJsonPanel();
-                }
-            }
-
-            // Poll for real-time accumulated cost of this chat (not mock-browser)
-            if (state.settings.apiMode !== 'mock-browser') {
-                let costUrl = `/api/cost?chat_id=${chatObj.id}`;
-                if (window.location.protocol === 'file:') {
-                    costUrl = `http://localhost:3000/api/cost?chat_id=${chatObj.id}`;
-                }
-                const costRes = await fetch(costUrl);
-                if (costRes.ok) {
-                    const costData = await costRes.json();
-                    if (costData && costData.total !== undefined) {
-                        const changed = costData.total !== chatObj.costTotal || costData.currency !== chatObj.costCurrency;
-                        if (changed) {
-                            chatObj.costTotal = costData.total || 0;
-                            chatObj.costCurrency = costData.currency || 'BRL';
-                            saveState();
-                            renderCostBadge(chatObj, true);
-                        }
-                    }
-                }
-            }
-
-            // Poll for current status of the process (and watch for the permanent "finalizado" signal).
-            // Runs regardless of workflowState, since finalizado can arrive after the chat already went idle.
-            // Stops once the chat is closed — there's nothing left to watch for.
-            if (chatObj.workflowState !== 'closed' && state.settings.apiMode !== 'mock-browser') {
-                let statusUrl = `/api/status?chat_id=${chatObj.id}`;
-                if (window.location.protocol === 'file:') {
-                    statusUrl = `http://localhost:3000/api/status?chat_id=${chatObj.id}`;
-                }
-                const statusRes = await fetch(statusUrl);
-                if (statusRes.ok) {
-                    const statusData = await statusRes.json();
-                    if (statusData && statusData.status !== undefined && statusData.status !== null) {
-                        const normalizedStatus = String(statusData.status).trim().toLowerCase();
-                        const incomingProgress = (statusData.progress !== undefined && statusData.progress !== null && !Number.isNaN(Number(statusData.progress)))
-                            ? Number(statusData.progress)
-                            : null;
-                        if (normalizedStatus === 'finalizado') {
-                            chatObj.workflowState = 'closed';
-                            chatObj.currentStatusText = null;
-                            chatObj.currentStatusProgress = null;
-                            chatObj.messages.push({
-                                message_id: generateUUID(),
-                                sender: 'system',
-                                text: 'Conversa finalizada pelo workflow. Este chat não pode mais enviar ou receber mensagens.',
-                                timestamp: new Date().toISOString()
-                            });
-                            saveState();
-                            renderMessages();
-                        } else if (chatObj.currentStatusText !== statusData.status || chatObj.currentStatusProgress !== incomingProgress) {
-                            chatObj.currentStatusText = statusData.status;
-                            chatObj.currentStatusProgress = incomingProgress;
-                            renderMessages();
-                        }
-                    } else if (chatObj.currentStatusText !== null) {
-                        // Server-side caption was cleared (e.g. a callback just fired and reset it) —
-                        // drop the stale caption instead of leaving it stuck on screen forever.
-                        chatObj.currentStatusText = null;
-                        chatObj.currentStatusProgress = null;
-                        renderMessages();
-                    }
-                }
-            }
-        } catch (e) {
-            // Ignore fetch errors when local server is offline
-        }
-    }, 1500);
+    const chatId = chatObj.id;
+    pollOnce(chatId); // Read immediately instead of waiting out the first interval.
+    chatPollTimer = setInterval(() => pollOnce(chatId), POLL_INTERVAL_MS);
 }
 
 // --- Copy Controls ---
@@ -1124,7 +1280,18 @@ chatInput.addEventListener('keydown', (e) => {
 
 btnSend.addEventListener('click', handleSendMessage);
 btnNewChat.addEventListener('click', () => createNewChat());
-btnCreateWelcome.addEventListener('click', () => createNewChat());
+
+// --- Hero suggestion cards (welcome screen "objetivo comercial" shortcuts) ---
+// Clicking one fills the composer with its prompt and sends it immediately, creating a
+// new chat on the fly (same path as typing directly into the hero screen and hitting Enter).
+document.querySelectorAll('.hero-suggestion-card').forEach(card => {
+    card.addEventListener('click', () => {
+        const text = card.dataset.text;
+        if (!text) return;
+        chatInput.value = text;
+        handleSendMessage();
+    });
+});
 
 // --- Clickable option cards inside a Lara message (e.g. "choose one of these companies") ---
 // Contract: any element with class "quick-reply-option" and a "data-label" attribute

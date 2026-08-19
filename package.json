@@ -1,0 +1,16 @@
+{
+  "name": "lara-leads-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lara Leads Platform - servidor local (chat + API + integração com o banco Postgres)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/server": "^1.4.1",
+    "@vercel/functions": "^1.6.0",
+    "dotenv": "^16.4.5",
+    "pg": "^8.12.0"
+  }
+}

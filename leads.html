@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lara Leads - Meus Leads em Cadência</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="leads.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Trilho de Navegação (mesmo das outras telas da plataforma) -->
+        <nav class="icon-rail">
+            <div class="rail-brand" title="Lara Leads">
+                <i data-lucide="sprout"></i>
+            </div>
+            <div class="rail-nav">
+                <button class="rail-btn active" title="Meus Leads em Cadência">
+                    <i data-lucide="layout-list"></i>
+                </button>
+                <a class="rail-btn" href="index.html" title="Lara Leads (chat)">
+                    <i data-lucide="message-square"></i>
+                </a>
+                <a class="rail-btn" href="contatos.html" title="Contatos">
+                    <i data-lucide="users"></i>
+                </a>
+                <a class="rail-btn" href="setup.html" title="Configuração de Setup">
+                    <i data-lucide="settings"></i>
+                </a>
+            </div>
+            <div class="rail-footer">
+                <button class="btn-icon" id="btn-toggle-theme" title="Alternar Tema (Escuro/Claro)">
+                    <i data-lucide="moon"></i>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Área Principal -->
+        <main class="leads-area">
+            <header class="leads-topbar">
+                <div class="leads-breadcrumb">
+                    <span>Lara Leads</span>
+                    <i data-lucide="chevron-right" class="icon-small"></i>
+                    <span class="current">Meus Leads em Cadência</span>
+                </div>
+                <div class="leads-topbar-right">
+                    <button class="btn-icon" title="Notificações">
+                        <i data-lucide="bell"></i>
+                    </button>
+                    <button class="btn-icon" title="Configurações (em breve)">
+                        <i data-lucide="settings"></i>
+                    </button>
+                    <div class="header-avatar" title="Usuário">
+                        <i data-lucide="user"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="leads-content">
+                <!-- Cards de Estatísticas -->
+                <div class="stat-grid" id="stat-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-icon info"><i data-lucide="users"></i></div>
+                        <div class="stat-card-body">
+                            <span class="stat-card-value" id="stat-contatos">—</span>
+                            <span class="stat-card-label">Contatos em Cadência</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-icon success"><i data-lucide="activity"></i></div>
+                        <div class="stat-card-body">
+                            <span class="stat-card-value" id="stat-etapas">—</span>
+                            <span class="stat-card-label">Etapas em Andamento</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-icon warning"><i data-lucide="phone-call"></i></div>
+                        <div class="stat-card-body">
+                            <span class="stat-card-value" id="stat-acoes">—</span>
+                            <span class="stat-card-label">Ações Manuais até Hoje</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-icon neutral"><i data-lucide="clock"></i></div>
+                        <div class="stat-card-body">
+                            <span class="stat-card-value" id="stat-pendentes">—</span>
+                            <span class="stat-card-label">Pendentes até Hoje</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cartão da Tabela -->
+                <div class="table-card">
+                    <div class="table-card-header">
+                        <div class="table-card-title">
+                            <i data-lucide="tag" class="icon-small"></i>
+                            <h3>Meus Leads em Cadência</h3>
+                        </div>
+                        <div class="table-card-controls">
+                            <div class="sidebar-search table-search">
+                                <i data-lucide="search"></i>
+                                <input type="text" id="leads-search-input" placeholder="Pesquisar por nome..." />
+                            </div>
+                            <select id="leads-status-filter" class="form-select status-filter">
+                                <option value="">Todos os status</option>
+                                <option value="ativo">Em Andamento</option>
+                                <option value="pending">Pendente</option>
+                                <option value="pausado">Pausado</option>
+                                <option value="manual">Ação Manual Pendente</option>
+                                <option value="cancelado">Cancelado</option>
+                                <option value="finalizado">Concluído</option>
+                            </select>
+                            <button class="btn-icon" id="btn-refresh-leads" title="Atualizar">
+                                <i data-lucide="refresh-cw"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Conta</th>
+                                    <th>Cadência</th>
+                                    <th>Etapa Atual</th>
+                                    <th>Próxima Etapa</th>
+                                    <th>Responsável</th>
+                                    <th>Canais</th>
+                                    <th>Atualizado em</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leads-table-body">
+                                <tr><td colspan="8" class="table-loading">Carregando leads...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="table-footer">
+                        <span class="table-footer-info" id="leads-pagination-info">—</span>
+                        <div class="table-pagination" id="leads-pagination"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="leads.js"></script>
+</body>
+</html>

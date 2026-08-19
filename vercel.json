@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/error", "destination": "/api/error" }
+  ]
+}

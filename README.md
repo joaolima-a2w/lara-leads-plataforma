@@ -16,6 +16,14 @@ Criamos um executor automático para facilitar a inicialização.
 
 ---
 
+## ☁️ Publicando no Vercel (URL pública em vez de ngrok)
+
+Pra deixar o webhook de callback (`/api/callback`, `/api/status`, `/api/cost`, `/api/error`)
+numa URL pública estável — sem precisar de túnel do ngrok — veja o passo a passo em
+[DEPLOY_VERCEL.md](DEPLOY_VERCEL.md).
+
+---
+
 ## ⚙️ Conectando com seus Workflows Reais (ex.: n8n)
 
 Por padrão, a aplicação já vem configurada para enviar requisições reais para o seu webhook do n8n:
@@ -70,7 +78,7 @@ Seu workflow do n8n recebe o payload e responde imediatamente na resposta da req
 O chat capturará essa resposta e a exibirá instantaneamente na bolha e na aba de logs de resposta.
 
 #### Método B: Retorno Assíncrono (Callback URL - Recomendado para fluxos demorados)
-Se o seu workflow faz processamentos assíncronos e responde mais tarde, você pode fazer uma chamada HTTP `POST` para o servidor local do Chat Sandbox contendo a resposta. O chat escuta essas atualizações de forma contínua por debaixo dos panos (polling ativo).
+Se o seu workflow faz processamentos assíncronos e responde mais tarde, você pode fazer uma chamada HTTP `POST` para o servidor do Chat Sandbox contendo a resposta. O chat recebe essas atualizações via polling (`GET /api/poll`) — ver [POLLING.md](POLLING.md).
 
 - **URL de Callback:** `POST http://localhost:3000/api/callback` (ou através da URL pública do seu túnel ngrok)
 - **Payload do Callback (a ser enviado pelo n8n):**
@@ -133,7 +141,7 @@ Se o seu workflow quer mostrar quanto já foi gasto durante o processamento (som
 - **`total`** é o único valor exibido — o sandbox não soma nem quebra em categorias, só mostra o número que você mandou.
 - **`currency`** é opcional. Todo chat novo já começa com **BRL** como padrão; só envie se quiser usar outra moeda.
 
-O chat exibe o valor em um badge de carteira 💰 ao lado do `chat_id` no cabeçalho, atualizado automaticamente pelo mesmo polling que já busca respostas e status (a cada 1.5s).
+O chat exibe o valor em um badge de carteira 💰 ao lado do `chat_id` no cabeçalho, atualizado em tempo real pelo mesmo canal SSE que já entrega respostas e status.
 
 ### 3. Cards de Seleção (Quick Reply Options)
 Seu workflow pode retornar, dentro do `reply`, HTML com cards clicáveis para o usuário escolher uma opção (ex.: "escolha uma destas empresas"). Basta usar a classe `quick-reply-option` em cada card:
