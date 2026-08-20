@@ -755,6 +755,13 @@ function renderMessages() {
                         </div>
                     </div>
                 `;
+            } else if (msg.sender === 'user') {
+                // Mensagens do usuário NUNCA viram HTML/script executável, mesmo que o
+                // texto comece com "<" — isso é reservado pras respostas da Lara (cards
+                // do workflow). Sem isso, digitar "<script>...</script>" na caixa de
+                // mensagem executava o script direto na tela (e de novo a cada reabertura
+                // do chat, já que a mensagem fica salva no localStorage).
+                formattedText = escapeHtml(msg.text).replace(/\n/g, '<br/>');
             } else {
                 formattedText = msg.text.trim().startsWith('<')
                     ? msg.text
