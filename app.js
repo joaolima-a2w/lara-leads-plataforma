@@ -951,6 +951,11 @@ async function sendMessageText(text, extra = {}) {
     chatObj.workflowState = 'sending';
     chatObj.currentStatusText = null;
     chatObj.currentStatusProgress = null;
+    // A poll from the previous wait cycle may still be in flight (e.g. the user
+    // clicked a card's confirm button right as a slow /api/poll was returning) — bump
+    // the generation so its (now stale) result gets dropped instead of clobbering the
+    // fresh state we just set above.
+    pollGeneration++;
     renderMessages();
 
     // In custom-webhook mode, the workflow may answer synchronously (the HTTP response
@@ -1121,6 +1126,14 @@ async function executeWorkflowCall(payload) {
 const POLL_INTERVAL_MS = 2000;
 let chatPollTimer = null;
 
+// Bumped whenever the "current cycle" for the active chat is invalidated by a more
+// recent action (sending a new message resets the wait) — a poll that was already
+// in flight when that happens must not apply its (now stale) result on top of the
+// fresh state. SSE never had this problem (strict push order); polling can have
+// two requests in flight at once (a slow one from before + the next 2s tick), and
+// nothing guarantees the older one's response arrives first.
+let pollGeneration = 0;
+
 function stopPolling() {
     if (chatPollTimer) {
         clearInterval(chatPollTimer);
@@ -1128,7 +1141,7 @@ function stopPolling() {
     }
 }
 
-async function pollOnce(chatId) {
+async function pollOnce(chatId, generation) {
     let url = `/api/poll?chat_id=${chatId}`;
     if (window.location.protocol === 'file:') {
         url = `http://localhost:3000/api/poll?chat_id=${chatId}`;
@@ -1142,6 +1155,10 @@ async function pollOnce(chatId) {
         console.error('Erro ao consultar /api/poll:', err);
         return;
     }
+
+    // A newer action (new message sent, chat switched) superseded this request
+    // while it was in flight — its result is stale, drop it.
+    if (generation !== pollGeneration) return;
 
     // The active chat may have changed (or the chat list may have been cleared)
     // while this request was in flight — never apply a stale poll's result.
@@ -1235,9 +1252,13 @@ function startPolling() {
     const chatObj = getActiveChat();
     if (!chatObj || chatObj.workflowState === 'closed') return;
 
+    pollGeneration++; // Invalidate any poll still in flight from before this (re)start.
     const chatId = chatObj.id;
-    pollOnce(chatId); // Read immediately instead of waiting out the first interval.
-    chatPollTimer = setInterval(() => pollOnce(chatId), POLL_INTERVAL_MS);
+    // Read pollGeneration fresh on every call (not captured once) — a later action
+    // (sendMessageText bumping it) must only invalidate polls already in flight at
+    // that moment, not every future tick of this same interval.
+    pollOnce(chatId, pollGeneration); // Read immediately instead of waiting out the first interval.
+    chatPollTimer = setInterval(() => pollOnce(chatId, pollGeneration), POLL_INTERVAL_MS);
 }
 
 // --- Copy Controls ---
