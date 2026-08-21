@@ -23,7 +23,7 @@ async function handleCallback(req, res) {
 
     if (!chat_id || !reply) {
         const errResponse = { error: true, message: 'Os campos chat_id e reply sao obrigatorios.' };
-        await sandboxStore.pushLog({ direction: 'in', endpoint: '/api/callback', chat_id: chat_id || null, statusCode: 400, request: payload, response: errResponse });
+        waitUntil(sandboxStore.pushLog({ direction: 'in', endpoint: '/api/callback', chat_id: chat_id || null, statusCode: 400, request: payload, response: errResponse }));
         return res.status(400).json(errResponse);
     }
 
@@ -37,7 +37,7 @@ async function handleCallback(req, res) {
     await sandboxStore.queueMessage(chat_id, responseMsg);
 
     const okResponse = { success: true, message: 'Resposta enfileirada com sucesso.' };
-    await sandboxStore.pushLog({ direction: 'in', endpoint: '/api/callback', chat_id, statusCode: 200, request: payload, response: okResponse });
+    waitUntil(sandboxStore.pushLog({ direction: 'in', endpoint: '/api/callback', chat_id, statusCode: 200, request: payload, response: okResponse }));
     return res.status(200).json(okResponse);
 }
 
@@ -49,7 +49,7 @@ async function handleStatus(req, res) {
 
         if (!chat_id) {
             const errResponse = { error: true, message: 'O campo chat_id e obrigatorio.' };
-            await sandboxStore.pushLog({ direction: 'in', endpoint: '/api/status', chat_id: null, statusCode: 400, request: payload, response: errResponse });
+            waitUntil(sandboxStore.pushLog({ direction: 'in', endpoint: '/api/status', chat_id: null, statusCode: 400, request: payload, response: errResponse }));
             return res.status(400).json(errResponse);
         }
 
@@ -61,7 +61,7 @@ async function handleStatus(req, res) {
         await sandboxStore.setStatus(chat_id, status || null, progress);
 
         const okResponse = { success: true };
-        await sandboxStore.pushLog({ direction: 'in', endpoint: '/api/status', chat_id, statusCode: 200, request: payload, response: okResponse });
+        waitUntil(sandboxStore.pushLog({ direction: 'in', endpoint: '/api/status', chat_id, statusCode: 200, request: payload, response: okResponse }));
         return res.status(200).json(okResponse);
     }
 
@@ -81,7 +81,7 @@ async function handleCost(req, res) {
         const chat_id = payload.chat_id;
         if (!chat_id) {
             const errResponse = { error: true, message: 'O campo chat_id e obrigatorio.' };
-            await sandboxStore.pushLog({ direction: 'in', endpoint: '/api/cost', chat_id: null, statusCode: 400, request: payload, response: errResponse });
+            waitUntil(sandboxStore.pushLog({ direction: 'in', endpoint: '/api/cost', chat_id: null, statusCode: 400, request: payload, response: errResponse }));
             return res.status(400).json(errResponse);
         }
 
@@ -90,13 +90,13 @@ async function handleCost(req, res) {
         if (!hasTotal) {
             const current = await sandboxStore.getChatState(chat_id);
             const skippedResponse = { success: true, skipped: true, chat_id, total: current.cost.total, currency: current.cost.currency };
-            await sandboxStore.pushLog({ direction: 'in', endpoint: '/api/cost', chat_id, statusCode: 200, request: payload, response: skippedResponse });
+            waitUntil(sandboxStore.pushLog({ direction: 'in', endpoint: '/api/cost', chat_id, statusCode: 200, request: payload, response: skippedResponse }));
             return res.status(200).json(skippedResponse);
         }
 
         const saved = await sandboxStore.setCost(chat_id, numericTotal, payload.currency);
         const okResponse = { success: true, chat_id, total: saved.total, currency: saved.currency };
-        await sandboxStore.pushLog({ direction: 'in', endpoint: '/api/cost', chat_id, statusCode: 200, request: payload, response: okResponse });
+        waitUntil(sandboxStore.pushLog({ direction: 'in', endpoint: '/api/cost', chat_id, statusCode: 200, request: payload, response: okResponse }));
         return res.status(200).json(okResponse);
     }
 

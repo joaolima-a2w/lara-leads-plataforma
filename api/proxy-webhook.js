@@ -1,6 +1,7 @@
 // POST /api/proxy-webhook — bypass de CORS pro webhook real.
 const sandboxStore = require('../sandboxStore');
 const { handleCors, getJsonBody } = require('../apiUtils');
+const { waitUntil } = require('@vercel/functions');
 
 module.exports = async (req, res) => {
     if (handleCors(req, res)) return;
@@ -24,13 +25,16 @@ module.exports = async (req, res) => {
         let parsedResBody;
         try { parsedResBody = JSON.parse(resBody); } catch (e) { parsedResBody = resBody; }
 
-        await sandboxStore.pushLog({ direction: 'out', endpoint: targetUrl, chat_id, statusCode: proxyRes.status, request: payload, response: parsedResBody });
+        // Não espera o log gravar antes de responder — é só auditoria/depuração, e cada
+        // round-trip ao Supabase custa ~1-1.5s nesse ambiente. Isso estava adicionando
+        // esse atraso a CADA mensagem enviada no chat antes de repassar a resposta do n8n.
+        waitUntil(sandboxStore.pushLog({ direction: 'out', endpoint: targetUrl, chat_id, statusCode: proxyRes.status, request: payload, response: parsedResBody }));
         res.status(proxyRes.status).setHeader('Content-Type', proxyRes.headers.get('content-type') || 'application/json');
         return res.send(resBody);
     } catch (err) {
         console.error('[api/proxy-webhook] Erro inesperado:', err);
         const errResponse = { error: true, message: `Falha ao conectar no webhook do n8n: ${err.message}` };
-        await sandboxStore.pushLog({ direction: 'out', endpoint: targetUrl, chat_id, statusCode: 502, request: payload, response: errResponse });
+        waitUntil(sandboxStore.pushLog({ direction: 'out', endpoint: targetUrl, chat_id, statusCode: 502, request: payload, response: errResponse }));
         return res.status(502).json(errResponse);
     }
 };

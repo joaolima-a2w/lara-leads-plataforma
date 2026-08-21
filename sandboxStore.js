@@ -9,19 +9,23 @@ const { supabaseAdmin } = require('./supabaseClient');
 // --- Mensagens assíncronas (fila consume-on-read, equivalente a pendingResponses) ---
 
 async function queueMessage(chatId, responseMsg) {
-    const { error } = await supabaseAdmin.from('sandbox_messages').insert({
-        chat_id: chatId,
-        message_id: responseMsg.message_id,
-        reply: responseMsg.reply,
-        status: responseMsg.status,
-        next_action: responseMsg.next_action,
-        raw_payload: responseMsg.raw_payload
-    });
+    // As duas escritas são independentes (uma não depende do resultado da outra) —
+    // rodar em paralelo custa 1 round-trip em vez de 2 (cada round-trip pro Supabase
+    // custa ~1-1.5s neste ambiente).
+    const [{ error }] = await Promise.all([
+        supabaseAdmin.from('sandbox_messages').insert({
+            chat_id: chatId,
+            message_id: responseMsg.message_id,
+            reply: responseMsg.reply,
+            status: responseMsg.status,
+            next_action: responseMsg.next_action,
+            raw_payload: responseMsg.raw_payload
+        }),
+        // Uma resposta nova sempre substitui qualquer legenda de status anterior —
+        // mesma regra do server.js local (`delete activeStatuses[chat_id]` em /api/callback).
+        clearStatus(chatId)
+    ]);
     if (error) throw new Error(`Falha ao enfileirar mensagem: ${error.message}`);
-
-    // Uma resposta nova sempre substitui qualquer legenda de status anterior — mesma
-    // regra do server.js local (`delete activeStatuses[chat_id]` em /api/callback).
-    await clearStatus(chatId);
 }
 
 async function consumeMessages(chatId) {
