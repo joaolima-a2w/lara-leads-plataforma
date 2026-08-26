@@ -12,9 +12,10 @@ const STATUS_ACTIONS = {
     parar: { status: 'cancelado' },
     concluir: { status: 'finalizado', setFinalizadoEm: true },
     // O n8n é quem seta status:"manual" quando a etapa atual exige ação manual
-    // (ligação); esse botão só existe pro usuário devolver a cadência pro fluxo
-    // automático depois de cumprir a tarefa.
-    manual_concluida: { status: 'ativo' }
+    // (ligação), e mantém etapa_atual parada nela enquanto isso — a automação só avança
+    // de novo depois que o usuário confirma que cumpriu a tarefa. Por isso esse botão
+    // também avança etapa_atual em 1, além de devolver a cadência pro fluxo automático.
+    manual_concluida: { status: 'ativo', incrementEtapaAtual: true }
 };
 
 // PostgREST reports a table that doesn't exist yet either as a raw Postgres
@@ -158,16 +159,29 @@ async function updateLeadCadenciaStatus(leadCadenciaId, action) {
     const patch = { status: config.status };
     if (config.setFinalizadoEm) patch.finalizado_em = new Date().toISOString();
 
+    if (config.incrementEtapaAtual) {
+        // Supabase/PostgREST não faz "etapa_atual = etapa_atual + 1" num update direto —
+        // precisa ler o valor atual primeiro.
+        const { data: current, error: readErr } = await supabaseAdmin
+            .from('lead_cadencias')
+            .select('etapa_atual')
+            .eq('id', leadCadenciaId)
+            .maybeSingle();
+        if (readErr) throw new Error(`Falha ao ler etapa atual: ${readErr.message}`);
+        if (!current) throw new Error('Lead não encontrado.');
+        patch.etapa_atual = (current.etapa_atual || 0) + 1;
+    }
+
     const { data, error } = await supabaseAdmin
         .from('lead_cadencias')
         .update(patch)
         .eq('id', leadCadenciaId)
-        .select('id,status,finalizado_em')
+        .select('id,status,finalizado_em,etapa_atual')
         .maybeSingle();
 
     if (error) throw new Error(`Falha ao atualizar status: ${error.message}`);
     if (!data) throw new Error('Lead não encontrado.');
-    return { id: data.id, status: mapStatus(data.status, data.finalizado_em) };
+    return { id: data.id, status: mapStatus(data.status, data.finalizado_em), etapa_atual: data.etapa_atual };
 }
 
 async function saveStageNote(leadCadenciaId, etapaCadencia, { acao, feedback }) {
