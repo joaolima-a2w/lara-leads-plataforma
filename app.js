@@ -1198,8 +1198,15 @@ async function pollOnce(chatId, generation) {
     }
 
     // 3) Progress caption + the permanent "finalizado" signal — old SSE "status" event
+    // Skipped entirely if a message in THIS SAME poll already resolved the wait
+    // (workflowState left 'waiting' because of it) — the status value read alongside
+    // that message can be stale (e.g. n8n's /api/callback clears the status and inserts
+    // the message as two separate writes, not one atomic operation, so a poll can catch
+    // the new message before the status clear has landed) and must not re-lock the chat
+    // with an outdated caption on top of a reply that already arrived.
+    const resolvedByMessageThisPoll = messagesChanged && activeChatObj.workflowState !== 'waiting';
     let statusChanged = false;
-    if (state.settings.apiMode !== 'mock-browser' && activeChatObj.workflowState !== 'closed' &&
+    if (!resolvedByMessageThisPoll && state.settings.apiMode !== 'mock-browser' && activeChatObj.workflowState !== 'closed' &&
         data.status && data.status.status !== undefined && data.status.status !== null) {
         const normalizedStatus = String(data.status.status).trim().toLowerCase();
         const incomingProgress = (data.status.progress !== undefined && data.status.progress !== null && !Number.isNaN(Number(data.status.progress)))
