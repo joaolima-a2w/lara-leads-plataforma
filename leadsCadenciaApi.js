@@ -123,37 +123,45 @@ async function getLeadsCadencia({ page = 1, pageSize = 20, search = '', status =
 // atual — não existe conceito de "aprovação" nas tabelas ainda, então esse card fica
 // como null (o front mostra "—") em vez de inventar um número.
 async function getLeadsCadenciaStats() {
-    // As 4 primeiras queries são independentes entre si — rodar em paralelo custa 1
-    // round-trip em vez de 4 (cada round-trip pro Supabase custa ~1-1.5s neste ambiente).
+    // As 5 primeiras queries são independentes entre si — rodar em paralelo custa 1
+    // round-trip em vez de 5 (cada round-trip pro Supabase custa ~1-1.5s neste ambiente).
     const [
         { count: totalContatos, error: e1 },
         { count: etapasEmAndamento, error: e2 },
         { count: pendentes, error: e3 },
-        // "Ações manuais até hoje": etapas cujo canal é LIGACAO (o único canal que o
-        // schema já documenta como "não automatizado por estes workflows — apoio ao
-        // SDR", ver cadence_stages.estrutura_base) e cuja próxima data de envio já
-        // chegou. Calculado em memória porque filtrar por array de canal + data cruzando
-        // duas tabelas não é uma query trivial de PostgREST.
-        { data: ativos, error: e4 }
+        // "Ações manuais até hoje" tem duas fontes que se somam:
+        // 1) status:"manual" — o sinal definitivo, setado pelo próprio n8n quando ele já
+        //    processou a etapa e confirmou que ela exige ação manual (ver STATUS_MAP).
+        { count: manuaisConfirmados, error: e4 },
+        // 2) leads ainda "ativo" cuja etapa atual usa o canal LIGACAO (o único que o
+        //    schema documenta como "não automatizado por estes workflows — apoio ao
+        //    SDR", ver cadence_stages.estrutura_base) e cuja próxima data de envio já
+        //    chegou — heurística pra pegar quem ainda não foi processado pelo n8n mas já
+        //    deveria estar aguardando ação manual. Calculado em memória porque filtrar
+        //    por array de canal + data cruzando duas tabelas não é uma query trivial de
+        //    PostgREST.
+        { data: ativos, error: e5 }
     ] = await Promise.all([
         supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }),
         supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }).eq('status', 'ativo'),
         supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }).eq('status', 'manual'),
         supabaseAdmin.from('lead_cadencias').select('cadencia_id,etapa_atual,proxima_data_envio').eq('status', 'ativo')
     ]);
     if (e1) throw new Error(e1.message);
     if (e2) throw new Error(e2.message);
     if (e3) throw new Error(e3.message);
     if (e4) throw new Error(e4.message);
+    if (e5) throw new Error(e5.message);
 
-    let acoesManuais = 0;
+    let acoesManuais = manuaisConfirmados || 0;
     if (ativos.length > 0) {
         const cadenciaIds = [...new Set(ativos.map(a => a.cadencia_id).filter(Boolean))];
-        const { data: stages, error: e5 } = await supabaseAdmin
+        const { data: stages, error: stagesErr } = await supabaseAdmin
             .from('cadence_stages')
             .select('cadencia_id,etapa_cadencia,canais_aplicaveis')
             .in('cadencia_id', cadenciaIds);
-        if (e5) throw new Error(e5.message);
+        if (stagesErr) throw new Error(stagesErr.message);
 
         const manualStageKeys = new Set(
             stages
@@ -162,7 +170,9 @@ async function getLeadsCadenciaStats() {
         );
 
         const now = new Date();
-        acoesManuais = ativos.filter(a =>
+        // Soma (não substitui) — os "ativo" pendentes de virar manual são adicionais
+        // aos que o n8n já confirmou como status:"manual".
+        acoesManuais += ativos.filter(a =>
             manualStageKeys.has(`${a.cadencia_id}::${a.etapa_atual}`) &&
             a.proxima_data_envio &&
             new Date(a.proxima_data_envio) <= now
