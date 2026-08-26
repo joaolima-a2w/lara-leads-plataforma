@@ -115,11 +115,12 @@ function renderPeers(peers) {
     `;
 }
 
-// Botão "Tarefa Manual Concluída" só aparece na etapa atual, quando ela exige uma
-// ação manual (hoje só ligação/LIGACAO) e o n8n já sinalizou isso via status:"manual"
-// no lead_cadencias — nunca a partir só do canal, pra não adiantar o sinal do workflow.
+// Botão "Tarefa Manual Concluída" só aparece na etapa atual, quando o n8n já
+// sinalizou isso via status:"manual" no lead_cadencias. Não depende do canal da etapa
+// — o n8n pode marcar qualquer etapa (ligação, LinkedIn, etc.) como exigindo ação
+// manual, não só ligação; o status:"manual" já é o sinal completo por si só.
 function requiresManualAction(stage, leadStatusRaw) {
-    return stage.status === 'atual' && leadStatusRaw === 'manual' && (stage.canais_aplicaveis || []).includes('LIGACAO');
+    return stage.status === 'atual' && leadStatusRaw === 'manual';
 }
 
 function renderTimelineItem(stage, leadId, leadStatusRaw) {
@@ -140,8 +141,8 @@ function renderTimelineItem(stage, leadId, leadStatusRaw) {
             ${channels ? `<div class="timeline-channels"><span class="timeline-channel-tag">${escapeHtml(channels)}</span></div>` : ''}
             ${manualAction ? `
                 <div class="manual-action-banner">
-                    <i data-lucide="phone-call" class="icon-small"></i>
-                    <span>Essa etapa exige uma ligação manual. Marque como concluída depois de fazê-la.</span>
+                    <i data-lucide="hand" class="icon-small"></i>
+                    <span>Essa etapa exige uma ação manual${channels ? ` (${escapeHtml(channels)})` : ''}. Marque como concluída depois de realizá-la.</span>
                     <button type="button" class="btn-lead-action warning" id="btn-manual-concluida">Tarefa Manual Concluída</button>
                 </div>
             ` : ''}
@@ -219,7 +220,7 @@ function bindTimelineActions(leadId) {
 const STATUS_ACTION_CONFIRM = {
     parar: 'Tem certeza que deseja parar esta cadência? Ela não volta a rodar automaticamente depois disso.',
     concluir: 'Marcar esta cadência como concluída?',
-    manual_concluida: 'Confirmar que a tarefa manual (ligação) foi concluída? A cadência volta a rodar automaticamente.'
+    manual_concluida: 'Confirmar que a tarefa manual foi concluída? A cadência volta a rodar automaticamente.'
 };
 
 async function updateLeadStatus(leadId, action, button) {
