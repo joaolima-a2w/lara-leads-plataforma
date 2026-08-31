@@ -45,13 +45,14 @@ async function loadStats() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Falha ao carregar estatísticas');
 
+        document.getElementById('stat-respondidos').textContent = data.leads_respondidos.toLocaleString('pt-BR');
         document.getElementById('stat-contatos').textContent = data.contatos_em_cadencia.toLocaleString('pt-BR');
         document.getElementById('stat-etapas').textContent = data.etapas_em_andamento.toLocaleString('pt-BR');
         document.getElementById('stat-acoes').textContent = data.acoes_manuais_hoje.toLocaleString('pt-BR');
         document.getElementById('stat-pendentes').textContent = data.pendentes_aprovacao_hoje.toLocaleString('pt-BR');
     } catch (err) {
         console.error('Erro ao carregar stats:', err);
-        ['stat-contatos', 'stat-etapas', 'stat-acoes', 'stat-pendentes'].forEach(id => {
+        ['stat-respondidos', 'stat-contatos', 'stat-etapas', 'stat-acoes', 'stat-pendentes'].forEach(id => {
             document.getElementById(id).textContent = '—';
         });
     }
@@ -64,9 +65,12 @@ function renderRow(row) {
     const proximaEtapaTxt = row.proxima_etapa.nome
         ? `Dia ${row.proxima_etapa.dia} · ${escapeHtml(row.proxima_etapa.nome)}`
         : `Etapa ${row.proxima_etapa.numero}`;
+    // O status mais importante pro usuário ganha destaque na linha inteira, não só
+    // no badge — a lista já vem ordenada com esses primeiro (ver leadsCadenciaApi.js).
+    const highlightClass = row.status.raw === 'respondido' ? ' row-respondido' : '';
 
     return `
-        <tr class="clickable-row" data-id="${escapeHtml(row.id)}">
+        <tr class="clickable-row${highlightClass}" data-id="${escapeHtml(row.id)}">
             <td>
                 <span class="cell-account">${escapeHtml(row.conta)}</span>
                 <span class="cell-sub">${escapeHtml(row.lead_name)}${row.lead_title ? ' · ' + escapeHtml(row.lead_title) : ''}</span>

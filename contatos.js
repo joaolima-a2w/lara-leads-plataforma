@@ -71,6 +71,9 @@ function renderCadenciaCell(emCadencia) {
         pending: { label: 'Pendente', tone: 'warning' },
         pausado: { label: 'Pausado', tone: 'warning' },
         manual: { label: 'Ação Manual Pendente', tone: 'warning' },
+        // O status mais importante pro usuário — mesmo destaque (tom "accent") usado
+        // na tela de leads.
+        respondido: { label: 'Respondido', tone: 'accent' },
         cancelado: { label: 'Cancelado', tone: 'danger' },
         finalizado: { label: 'Concluído', tone: 'info' }
     };

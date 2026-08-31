@@ -82,6 +82,15 @@
 .stat-card-icon.success { background: var(--success-soft); color: var(--success); }
 .stat-card-icon.warning { background: rgba(217, 119, 6, 0.12); color: #d97706; }
 .stat-card-icon.neutral { background: var(--bg-canvas); color: var(--text-secondary); }
+.stat-card-icon.accent { background: var(--accent-soft); color: var(--accent); }
+
+/* O status mais importante pro usuário (leads que responderam) ganha um card com
+   destaque próprio — borda e leve halo na cor de marca, pra se diferenciar dos
+   outros cards à primeira vista, não só pela cor do ícone. */
+.stat-card-highlight {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-xs);
+}
 
 .stat-card-body {
     display: flex;
@@ -270,6 +279,21 @@
 
 .status-badge.neutral { background: var(--bg-canvas); color: var(--text-secondary); border: 1px solid var(--border-strong); }
 .status-badge.neutral::before { background: var(--text-tertiary); }
+
+/* "Respondido" — o status mais importante, cor de marca pra se destacar de todos
+   os outros badges (nenhum outro status usa --accent). */
+.status-badge.accent { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.status-badge.accent::before { background: var(--accent); }
+
+/* Linha inteira ganha destaque quando o lead respondeu — não dá pra depender só da
+   coluna de status ser vista. */
+.data-table tbody tr.row-respondido {
+    background: var(--accent-soft);
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+.data-table tbody tr.row-respondido:hover {
+    background: var(--accent-soft-strong);
+}
 
 /* Table Footer / Pagination */
 .table-footer {

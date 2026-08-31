@@ -19,8 +19,18 @@ const STATUS_MAP = {
     // Setado pelo próprio workflow n8n quando a etapa atual exige uma ação manual
     // (hoje só a ligação/LIGACAO) — o usuário resolve na tela de detalhe do lead
     // com o botão "Tarefa Manual Concluída", que devolve o status pra "ativo".
-    manual: { label: 'Ação Manual Pendente', tone: 'warning' }
+    manual: { label: 'Ação Manual Pendente', tone: 'warning' },
+    // O status mais importante pro usuário — setado pelo n8n quando o lead responde a
+    // uma mensagem enviada. Tom próprio ("accent", a cor de marca) pra se destacar de
+    // todos os outros; também prioriza a linha na lista e conta separado no dashboard
+    // (ver getLeadsCadenciaStats/getLeadsCadencia).
+    respondido: { label: 'Respondido', tone: 'accent' }
 };
+
+// Status que ganham prioridade no topo da lista, independente da ordenação normal por
+// data — hoje só "respondido" (é o sinal mais acionável pro usuário: alguém está
+// esperando um retorno).
+const PRIORITY_STATUSES = new Set(['respondido']);
 
 function mapStatus(rawStatus, finalizadoEm) {
     if (finalizadoEm) return { raw: rawStatus, label: 'Concluído', tone: 'success' };
@@ -39,20 +49,30 @@ async function fetchByIds(table, column, ids, selectCols = '*') {
 }
 
 async function getLeadsCadencia({ page = 1, pageSize = 20, search = '', status = '' } = {}) {
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-
+    // Sem paginação no banco aqui de propósito: leads com status "respondido" precisam
+    // furar a fila e aparecer primeiro, não dá pra fazer isso com um .order() simples do
+    // PostgREST (não é uma coluna, é uma prioridade condicional). A tabela é pequena o
+    // suficiente (poucas centenas de linhas) pra ordenar/paginar em memória sem problema.
     let query = supabaseAdmin
         .from('lead_cadencias')
-        .select('*', { count: 'exact' })
-        .order('iniciado_em', { ascending: false })
-        .range(from, to);
+        .select('*');
 
     if (status) query = query.eq('status', status);
     if (search) query = query.ilike('lead_name', `%${search}%`);
 
-    const { data: leadCadencias, error, count } = await query;
+    const { data: allLeadCadencias, error } = await query;
     if (error) throw new Error(`Falha ao buscar lead_cadencias: ${error.message}`);
+
+    allLeadCadencias.sort((a, b) => {
+        const aPriority = PRIORITY_STATUSES.has(a.status);
+        const bPriority = PRIORITY_STATUSES.has(b.status);
+        if (aPriority !== bPriority) return aPriority ? -1 : 1;
+        return new Date(b.iniciado_em) - new Date(a.iniciado_em);
+    });
+
+    const count = allLeadCadencias.length;
+    const from = (page - 1) * pageSize;
+    const leadCadencias = allLeadCadencias.slice(from, from + pageSize);
 
     const decisorIds = leadCadencias.map(l => l.decisor_id);
     const cadenciaIds = leadCadencias.map(l => l.cadencia_id);
@@ -140,19 +160,23 @@ async function getLeadsCadenciaStats() {
         //    deveria estar aguardando ação manual. Calculado em memória porque filtrar
         //    por array de canal + data cruzando duas tabelas não é uma query trivial de
         //    PostgREST.
-        { data: ativos, error: e5 }
+        { data: ativos, error: e5 },
+        // O status mais importante pro usuário — card próprio, ver STATUS_MAP.
+        { count: respondidos, error: e6 }
     ] = await Promise.all([
         supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }),
         supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }).eq('status', 'ativo'),
         supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }).eq('status', 'manual'),
-        supabaseAdmin.from('lead_cadencias').select('cadencia_id,etapa_atual,proxima_data_envio').eq('status', 'ativo')
+        supabaseAdmin.from('lead_cadencias').select('cadencia_id,etapa_atual,proxima_data_envio').eq('status', 'ativo'),
+        supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }).eq('status', 'respondido')
     ]);
     if (e1) throw new Error(e1.message);
     if (e2) throw new Error(e2.message);
     if (e3) throw new Error(e3.message);
     if (e4) throw new Error(e4.message);
     if (e5) throw new Error(e5.message);
+    if (e6) throw new Error(e6.message);
 
     let acoesManuais = manuaisConfirmados || 0;
     if (ativos.length > 0) {
@@ -183,7 +207,8 @@ async function getLeadsCadenciaStats() {
         contatos_em_cadencia: totalContatos || 0,
         etapas_em_andamento: etapasEmAndamento || 0,
         acoes_manuais_hoje: acoesManuais,
-        pendentes_aprovacao_hoje: pendentes || 0
+        pendentes_aprovacao_hoje: pendentes || 0,
+        leads_respondidos: respondidos || 0
     };
 }
 

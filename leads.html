@@ -66,6 +66,13 @@
             <div class="leads-content">
                 <!-- Cards de Estatísticas -->
                 <div class="stat-grid" id="stat-grid">
+                    <div class="stat-card stat-card-highlight">
+                        <div class="stat-card-icon accent"><i data-lucide="reply"></i></div>
+                        <div class="stat-card-body">
+                            <span class="stat-card-value" id="stat-respondidos">—</span>
+                            <span class="stat-card-label">Leads Respondidos</span>
+                        </div>
+                    </div>
                     <div class="stat-card">
                         <div class="stat-card-icon info"><i data-lucide="users"></i></div>
                         <div class="stat-card-body">
@@ -110,6 +117,7 @@
                             </div>
                             <select id="leads-status-filter" class="form-select status-filter">
                                 <option value="">Todos os status</option>
+                                <option value="respondido">Respondido</option>
                                 <option value="ativo">Em Andamento</option>
                                 <option value="pending">Pendente</option>
                                 <option value="pausado">Pausado</option>
