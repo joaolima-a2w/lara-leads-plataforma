@@ -19,21 +19,40 @@ const STATUS_MAP = {
     // Setado pelo próprio workflow n8n quando a etapa atual exige uma ação manual
     // (hoje só a ligação/LIGACAO) — o usuário resolve na tela de detalhe do lead
     // com o botão "Tarefa Manual Concluída", que devolve o status pra "ativo".
-    manual: { label: 'Ação Manual Pendente', tone: 'warning' },
-    // O status mais importante pro usuário — setado pelo n8n quando o lead responde a
-    // uma mensagem enviada. Tom próprio ("accent", a cor de marca) pra se destacar de
-    // todos os outros; também prioriza a linha na lista e conta separado no dashboard
-    // (ver getLeadsCadenciaStats/getLeadsCadencia).
-    respondido: { label: 'Respondido', tone: 'accent' }
+    manual: { label: 'Ação Manual Pendente', tone: 'warning' }
 };
 
-// Status que ganham prioridade no topo da lista, independente da ordenação normal por
-// data — hoje só "respondido" (é o sinal mais acionável pro usuário: alguém está
-// esperando um retorno).
-const PRIORITY_STATUSES = new Set(['respondido']);
+// O status mais importante pro usuário — um cron por canal seta "respondido wpp" /
+// "respondido email" / "respondido linkedin" quando o lead responde a uma mensagem
+// enviada por ali. Cada canal ganha a cor de marca mais próxima já disponível no
+// design system (nenhum ícone de logo existe no Lucide, então a cor faz esse papel:
+// verde = WhatsApp, azul = LinkedIn) e um ícone genérico do tipo de canal — mas todos
+// entram na mesma prioridade de ordenação (ver isRespondido) e destacam a linha
+// inteira na lista, não só o badge.
+const RESPONDED_CHANNELS = {
+    wpp: { label: 'Respondido no WhatsApp', tone: 'success', icon: 'message-circle' },
+    email: { label: 'Respondido por E-mail', tone: 'accent', icon: 'mail' },
+    linkedin: { label: 'Respondido no LinkedIn', tone: 'info', icon: 'external-link' }
+};
+
+function parseRespondedChannel(rawStatus) {
+    const match = /^respondido\s+(wpp|email|linkedin)$/i.exec((rawStatus || '').trim());
+    return match ? match[1].toLowerCase() : null;
+}
+
+function isRespondido(rawStatus) {
+    return parseRespondedChannel(rawStatus) !== null;
+}
 
 function mapStatus(rawStatus, finalizadoEm) {
     if (finalizadoEm) return { raw: rawStatus, label: 'Concluído', tone: 'success' };
+
+    const channel = parseRespondedChannel(rawStatus);
+    if (channel) {
+        const info = RESPONDED_CHANNELS[channel];
+        return { raw: rawStatus, label: info.label, tone: info.tone, icon: info.icon, channel };
+    }
+
     const known = STATUS_MAP[rawStatus];
     if (known) return { raw: rawStatus, ...known };
     return { raw: rawStatus, label: rawStatus || 'Sem status', tone: 'neutral' };
@@ -64,8 +83,8 @@ async function getLeadsCadencia({ page = 1, pageSize = 20, search = '', status =
     if (error) throw new Error(`Falha ao buscar lead_cadencias: ${error.message}`);
 
     allLeadCadencias.sort((a, b) => {
-        const aPriority = PRIORITY_STATUSES.has(a.status);
-        const bPriority = PRIORITY_STATUSES.has(b.status);
+        const aPriority = isRespondido(a.status);
+        const bPriority = isRespondido(b.status);
         if (aPriority !== bPriority) return aPriority ? -1 : 1;
         return new Date(b.iniciado_em) - new Date(a.iniciado_em);
     });
@@ -161,15 +180,17 @@ async function getLeadsCadenciaStats() {
         //    por array de canal + data cruzando duas tabelas não é uma query trivial de
         //    PostgREST.
         { data: ativos, error: e5 },
-        // O status mais importante pro usuário — card próprio, ver STATUS_MAP.
-        { count: respondidos, error: e6 }
+        // O status mais importante pro usuário — card próprio, com detalhamento por
+        // canal (ver RESPONDED_CHANNELS). Traz as linhas (não só a contagem) porque
+        // precisa quebrar o total por canal em memória.
+        { data: respondidosRows, error: e6 }
     ] = await Promise.all([
         supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }),
         supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }).eq('status', 'ativo'),
         supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }).eq('status', 'manual'),
         supabaseAdmin.from('lead_cadencias').select('cadencia_id,etapa_atual,proxima_data_envio').eq('status', 'ativo'),
-        supabaseAdmin.from('lead_cadencias').select('*', { count: 'exact', head: true }).eq('status', 'respondido')
+        supabaseAdmin.from('lead_cadencias').select('status').in('status', Object.keys(RESPONDED_CHANNELS).map(c => `respondido ${c}`))
     ]);
     if (e1) throw new Error(e1.message);
     if (e2) throw new Error(e2.message);
@@ -203,12 +224,19 @@ async function getLeadsCadenciaStats() {
         ).length;
     }
 
+    const respondidosPorCanal = { wpp: 0, email: 0, linkedin: 0 };
+    (respondidosRows || []).forEach(r => {
+        const channel = parseRespondedChannel(r.status);
+        if (channel) respondidosPorCanal[channel]++;
+    });
+
     return {
         contatos_em_cadencia: totalContatos || 0,
         etapas_em_andamento: etapasEmAndamento || 0,
         acoes_manuais_hoje: acoesManuais,
         pendentes_aprovacao_hoje: pendentes || 0,
-        leads_respondidos: respondidos || 0
+        leads_respondidos: (respondidosRows || []).length,
+        leads_respondidos_por_canal: respondidosPorCanal
     };
 }
 

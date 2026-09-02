@@ -39,6 +39,26 @@ function escapeHtml(text) {
 let state = { page: 1, pageSize: 20, search: '', status: '' };
 let searchDebounceTimer = null;
 
+// Mesmas cores/ícones que leadsCadenciaApi.js usa em RESPONDED_CHANNELS pra montar o
+// badge de status — precisa bater exatamente, já que é o mesmo conceito visual.
+const CHANNEL_CHIP_INFO = {
+    wpp: { label: 'WhatsApp', tone: 'success', icon: 'message-circle' },
+    email: { label: 'E-mail', tone: 'accent', icon: 'mail' },
+    linkedin: { label: 'LinkedIn', tone: 'info', icon: 'external-link' }
+};
+
+function renderRespondidosBreakdown(porCanal) {
+    const chips = Object.entries(porCanal || {})
+        .filter(([, count]) => count > 0)
+        .map(([channel, count]) => {
+            const info = CHANNEL_CHIP_INFO[channel];
+            if (!info) return '';
+            return `<span class="channel-chip ${info.tone}"><i data-lucide="${info.icon}"></i>${count}</span>`;
+        })
+        .join('');
+    document.getElementById('stat-respondidos-breakdown').innerHTML = chips;
+}
+
 async function loadStats() {
     try {
         const res = await fetch('/api/leads-cadencia/stats');
@@ -46,16 +66,26 @@ async function loadStats() {
         if (!res.ok) throw new Error(data.message || 'Falha ao carregar estatísticas');
 
         document.getElementById('stat-respondidos').textContent = data.leads_respondidos.toLocaleString('pt-BR');
+        renderRespondidosBreakdown(data.leads_respondidos_por_canal);
         document.getElementById('stat-contatos').textContent = data.contatos_em_cadencia.toLocaleString('pt-BR');
         document.getElementById('stat-etapas').textContent = data.etapas_em_andamento.toLocaleString('pt-BR');
         document.getElementById('stat-acoes').textContent = data.acoes_manuais_hoje.toLocaleString('pt-BR');
         document.getElementById('stat-pendentes').textContent = data.pendentes_aprovacao_hoje.toLocaleString('pt-BR');
+        lucide.createIcons();
     } catch (err) {
         console.error('Erro ao carregar stats:', err);
         ['stat-respondidos', 'stat-contatos', 'stat-etapas', 'stat-acoes', 'stat-pendentes'].forEach(id => {
             document.getElementById(id).textContent = '—';
         });
+        document.getElementById('stat-respondidos-breakdown').innerHTML = '';
     }
+}
+
+function renderStatusBadge(status) {
+    if (status.icon) {
+        return `<span class="status-badge with-icon ${status.tone}"><i data-lucide="${status.icon}" class="status-badge-icon"></i>${escapeHtml(status.label)}</span>`;
+    }
+    return `<span class="status-badge ${status.tone}">${escapeHtml(status.label)}</span>`;
 }
 
 function renderRow(row) {
@@ -65,9 +95,10 @@ function renderRow(row) {
     const proximaEtapaTxt = row.proxima_etapa.nome
         ? `Dia ${row.proxima_etapa.dia} · ${escapeHtml(row.proxima_etapa.nome)}`
         : `Etapa ${row.proxima_etapa.numero}`;
-    // O status mais importante pro usuário ganha destaque na linha inteira, não só
-    // no badge — a lista já vem ordenada com esses primeiro (ver leadsCadenciaApi.js).
-    const highlightClass = row.status.raw === 'respondido' ? ' row-respondido' : '';
+    // O status mais importante pro usuário ganha destaque na linha inteira, não só no
+    // badge — a lista já vem ordenada com esses primeiro (ver leadsCadenciaApi.js).
+    // startsWith cobre os 3 canais (respondido wpp/email/linkedin) de uma vez.
+    const highlightClass = (row.status.raw || '').startsWith('respondido') ? ' row-respondido' : '';
 
     return `
         <tr class="clickable-row${highlightClass}" data-id="${escapeHtml(row.id)}">
@@ -91,7 +122,7 @@ function renderRow(row) {
                 </div>
             </td>
             <td>${formatDate(row.atualizado_em)}</td>
-            <td><span class="status-badge ${row.status.tone}">${escapeHtml(row.status.label)}</span></td>
+            <td>${renderStatusBadge(row.status)}</td>
         </tr>
     `;
 }

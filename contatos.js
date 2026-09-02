@@ -71,12 +71,23 @@ function renderCadenciaCell(emCadencia) {
         pending: { label: 'Pendente', tone: 'warning' },
         pausado: { label: 'Pausado', tone: 'warning' },
         manual: { label: 'Ação Manual Pendente', tone: 'warning' },
-        // O status mais importante pro usuário — mesmo destaque (tom "accent") usado
-        // na tela de leads.
-        respondido: { label: 'Respondido', tone: 'accent' },
         cancelado: { label: 'Cancelado', tone: 'danger' },
         finalizado: { label: 'Concluído', tone: 'info' }
     };
+    // O status mais importante pro usuário — um cron por canal seta "respondido wpp" /
+    // "respondido email" / "respondido linkedin". Mesmas cores/ícones do badge em
+    // leads.js: verde=WhatsApp, azul=LinkedIn, roxo (destaque)=E-mail.
+    const respondedMatch = /^respondido\s+(wpp|email|linkedin)$/i.exec((emCadencia.status || '').trim());
+    if (respondedMatch) {
+        const channel = respondedMatch[1].toLowerCase();
+        const respondedInfo = {
+            wpp: { label: 'Respondido no WhatsApp', tone: 'success', icon: 'message-circle' },
+            email: { label: 'Respondido por E-mail', tone: 'accent', icon: 'mail' },
+            linkedin: { label: 'Respondido no LinkedIn', tone: 'info', icon: 'external-link' }
+        }[channel];
+        return `<span class="status-badge with-icon ${respondedInfo.tone}"><i data-lucide="${respondedInfo.icon}" class="status-badge-icon"></i>${escapeHtml(respondedInfo.label)}</span>`;
+    }
+
     const info = statusMap[emCadencia.status] || { label: emCadencia.status, tone: 'neutral' };
     return `<span class="status-badge ${info.tone}">${escapeHtml(info.label)}</span>`;
 }

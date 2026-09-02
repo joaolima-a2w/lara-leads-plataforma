@@ -110,6 +110,35 @@
     color: var(--text-secondary);
 }
 
+/* Mini-chips por canal dentro do card "Leads Respondidos" — mesma cor de cada canal
+   usada no badge de status (ver .status-badge.success/.info/.accent), só que num selo
+   bem pequeno, pra dar o detalhamento sem precisar de 3 cards separados. */
+.stat-card-breakdown {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.channel-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.channel-chip svg {
+    width: 11px;
+    height: 11px;
+}
+
+.channel-chip.success { background: var(--success-soft); color: var(--success); }
+.channel-chip.accent { background: var(--accent-soft); color: var(--accent); }
+.channel-chip.info { background: var(--info-soft); color: var(--info); }
+
 /* ============ Table Card ============ */
 .table-card {
     background: var(--bg-surface);
@@ -262,6 +291,18 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Badges de "respondido" trazem um ícone real do canal (WhatsApp/E-mail/LinkedIn) em
+   vez da bolinha genérica — a forma do ícone já entrega a informação extra. */
+.status-badge.with-icon::before {
+    display: none;
+}
+
+.status-badge-icon {
+    width: 12px;
+    height: 12px;
     flex-shrink: 0;
 }
 

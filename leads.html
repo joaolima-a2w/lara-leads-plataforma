@@ -71,6 +71,7 @@
                         <div class="stat-card-body">
                             <span class="stat-card-value" id="stat-respondidos">—</span>
                             <span class="stat-card-label">Leads Respondidos</span>
+                            <div class="stat-card-breakdown" id="stat-respondidos-breakdown"></div>
                         </div>
                     </div>
                     <div class="stat-card">
@@ -117,7 +118,9 @@
                             </div>
                             <select id="leads-status-filter" class="form-select status-filter">
                                 <option value="">Todos os status</option>
-                                <option value="respondido">Respondido</option>
+                                <option value="respondido wpp">Respondido no WhatsApp</option>
+                                <option value="respondido email">Respondido por E-mail</option>
+                                <option value="respondido linkedin">Respondido no LinkedIn</option>
                                 <option value="ativo">Em Andamento</option>
                                 <option value="pending">Pendente</option>
                                 <option value="pausado">Pausado</option>
