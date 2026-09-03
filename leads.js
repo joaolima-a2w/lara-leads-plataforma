@@ -29,6 +29,12 @@ function formatDate(isoString) {
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function formatDateTime(isoString) {
+    if (!isoString) return '—';
+    const date = new Date(isoString);
+    return date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text == null ? '' : String(text);
@@ -36,7 +42,7 @@ function escapeHtml(text) {
 }
 
 // Estado local de filtros/paginação
-let state = { page: 1, pageSize: 20, search: '', status: '' };
+let state = { page: 1, pageSize: 20, search: '', status: '', canalResposta: '' };
 let searchDebounceTimer = null;
 
 // Mesmas cores/ícones que leadsCadenciaApi.js usa em RESPONDED_CHANNELS pra montar o
@@ -82,10 +88,42 @@ async function loadStats() {
 }
 
 function renderStatusBadge(status) {
-    if (status.icon) {
-        return `<span class="status-badge with-icon ${status.tone}"><i data-lucide="${status.icon}" class="status-badge-icon"></i>${escapeHtml(status.label)}</span>`;
-    }
     return `<span class="status-badge ${status.tone}">${escapeHtml(status.label)}</span>`;
+}
+
+// "Respondido" não é uma fase da cadência — é um fato à parte que pode acontecer em
+// qualquer status (ver leadsCadenciaApi.js), então são badges adicionais, empilhados
+// junto do status normal, nunca no lugar dele. Pode ter mais de um (respondeu em mais
+// de um canal).
+function renderRespondidoBadges(respondido) {
+    return (respondido || [])
+        .map(r => `<span class="status-badge with-icon ${r.tone}"><i data-lucide="${r.icon}" class="status-badge-icon"></i>${escapeHtml(r.label)}</span>`)
+        .join('');
+}
+
+// Coluna "Canais": além dos botões decorativos de ação (ligar / ação da Lara), o
+// ícone do canal por onde o lead respondeu (e-mail/WhatsApp/LinkedIn) ganha destaque
+// direto ali — reforço visual rápido, além do badge e da linha inteira marcada.
+const CHANNEL_BUTTON_ICON = { wpp: 'message-circle', email: 'mail', linkedin: 'external-link' };
+
+function renderChannelsCell(respondido) {
+    const respondedByChannel = new Map((respondido || []).map(r => [r.channel, r]));
+
+    function channelButton(channel, icon, defaultTitle) {
+        const r = respondedByChannel.get(channel);
+        if (!r) return `<button type="button" title="${defaultTitle}"><i data-lucide="${icon}"></i></button>`;
+        return `<button type="button" class="channel-responded ${r.tone}" title="${escapeHtml(r.label)} · ${formatDateTime(r.em)}"><i data-lucide="${icon}"></i></button>`;
+    }
+
+    return `
+        <div class="cell-channels">
+            ${channelButton('email', CHANNEL_BUTTON_ICON.email, 'Enviar e-mail (em breve)')}
+            <button type="button" title="Ligar (em breve)"><i data-lucide="phone"></i></button>
+            ${channelButton('wpp', CHANNEL_BUTTON_ICON.wpp, 'WhatsApp (em breve)')}
+            ${channelButton('linkedin', CHANNEL_BUTTON_ICON.linkedin, 'LinkedIn (em breve)')}
+            <button type="button" title="Ação da Lara (em breve)"><i data-lucide="sparkles"></i></button>
+        </div>
+    `;
 }
 
 function renderRow(row) {
@@ -97,8 +135,7 @@ function renderRow(row) {
         : `Etapa ${row.proxima_etapa.numero}`;
     // O status mais importante pro usuário ganha destaque na linha inteira, não só no
     // badge — a lista já vem ordenada com esses primeiro (ver leadsCadenciaApi.js).
-    // startsWith cobre os 3 canais (respondido wpp/email/linkedin) de uma vez.
-    const highlightClass = (row.status.raw || '').startsWith('respondido') ? ' row-respondido' : '';
+    const highlightClass = row.respondido && row.respondido.length > 0 ? ' row-respondido' : '';
 
     return `
         <tr class="clickable-row${highlightClass}" data-id="${escapeHtml(row.id)}">
@@ -113,16 +150,14 @@ function renderRow(row) {
             <td>${etapaAtualTxt}</td>
             <td>${proximaEtapaTxt}</td>
             <td>${escapeHtml(row.responsavel)}</td>
+            <td>${renderChannelsCell(row.respondido)}</td>
+            <td>${formatDate(row.atualizado_em)}</td>
             <td>
-                <div class="cell-channels">
-                    <button type="button" title="Enviar e-mail (em breve)"><i data-lucide="mail"></i></button>
-                    <button type="button" title="Ligar (em breve)"><i data-lucide="phone"></i></button>
-                    <button type="button" title="WhatsApp (em breve)"><i data-lucide="message-circle"></i></button>
-                    <button type="button" title="Ação da Lara (em breve)"><i data-lucide="sparkles"></i></button>
+                <div class="status-cell-stack">
+                    ${renderRespondidoBadges(row.respondido)}
+                    ${renderStatusBadge(row.status)}
                 </div>
             </td>
-            <td>${formatDate(row.atualizado_em)}</td>
-            <td>${renderStatusBadge(row.status)}</td>
         </tr>
     `;
 }
@@ -190,6 +225,7 @@ async function loadLeads() {
         });
         if (state.search) params.set('search', state.search);
         if (state.status) params.set('status', state.status);
+        if (state.canalResposta) params.set('canalResposta', state.canalResposta);
 
         const res = await fetch(`/api/leads-cadencia?${params.toString()}`);
         const data = await res.json();
@@ -222,6 +258,12 @@ document.getElementById('leads-search-input').addEventListener('input', (e) => {
 
 document.getElementById('leads-status-filter').addEventListener('change', (e) => {
     state.status = e.target.value;
+    state.page = 1;
+    loadLeads();
+});
+
+document.getElementById('leads-canal-filter').addEventListener('change', (e) => {
+    state.canalResposta = e.target.value;
     state.page = 1;
     loadLeads();
 });

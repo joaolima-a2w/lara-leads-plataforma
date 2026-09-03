@@ -94,6 +94,70 @@
     margin-top: 0.2rem;
 }
 
+/* "Respondido" é o fato mais importante pro usuário quando entra no lead — um card
+   por canal, ícone grande na cor do canal, tempo relativo em destaque (com o exato
+   ao lado). Fica entre o subtítulo e a grade de metadados, sempre visível independente
+   do status da cadência (pausada/cancelada não apaga que o lead respondeu). */
+.lead-response-banner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+}
+
+.lead-response-card {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.8rem;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+}
+
+.lead-response-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #fff;
+}
+
+.lead-response-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.lead-response-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+}
+
+.lead-response-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.lead-response-time {
+    font-size: 0.72rem;
+    color: var(--text-tertiary);
+}
+
+.lead-response-card.success { background: var(--success-soft); }
+.lead-response-card.success .lead-response-icon { background: var(--success); }
+.lead-response-card.success .lead-response-title { color: var(--success); }
+
+.lead-response-card.accent { background: var(--accent-soft); }
+.lead-response-card.accent .lead-response-icon { background: var(--accent); }
+.lead-response-card.accent .lead-response-title { color: var(--accent); }
+
+.lead-response-card.info { background: var(--info-soft); }
+.lead-response-card.info .lead-response-icon { background: var(--info); }
+.lead-response-card.info .lead-response-title { color: var(--info); }
+
 .lead-header-meta {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

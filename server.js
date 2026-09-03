@@ -722,8 +722,9 @@ const server = http.createServer((req, res) => {
         const pageSize = parseInt(parsedUrl.searchParams.get('pageSize'), 10) || 20;
         const search = parsedUrl.searchParams.get('search') || '';
         const status = parsedUrl.searchParams.get('status') || '';
+        const canalResposta = parsedUrl.searchParams.get('canalResposta') || '';
 
-        leadsCadenciaApi.getLeadsCadencia({ page, pageSize, search, status })
+        leadsCadenciaApi.getLeadsCadencia({ page, pageSize, search, status, canalResposta })
             .then((result) => {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(result));

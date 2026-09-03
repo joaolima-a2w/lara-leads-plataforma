@@ -118,15 +118,20 @@
                             </div>
                             <select id="leads-status-filter" class="form-select status-filter">
                                 <option value="">Todos os status</option>
-                                <option value="respondido wpp">Respondido no WhatsApp</option>
-                                <option value="respondido email">Respondido por E-mail</option>
-                                <option value="respondido linkedin">Respondido no LinkedIn</option>
                                 <option value="ativo">Em Andamento</option>
                                 <option value="pending">Pendente</option>
                                 <option value="pausado">Pausado</option>
                                 <option value="manual">Ação Manual Pendente</option>
                                 <option value="cancelado">Cancelado</option>
                                 <option value="finalizado">Concluído</option>
+                            </select>
+                            <!-- "Respondido" não é uma fase da cadência (não é status) — é um fato à
+                                 parte que pode acontecer em qualquer fase, por isso é um filtro próprio. -->
+                            <select id="leads-canal-filter" class="form-select status-filter">
+                                <option value="">Qualquer canal</option>
+                                <option value="wpp">Respondido no WhatsApp</option>
+                                <option value="email">Respondido por E-mail</option>
+                                <option value="linkedin">Respondido no LinkedIn</option>
                             </select>
                             <button class="btn-icon" id="btn-refresh-leads" title="Atualizar">
                                 <i data-lucide="refresh-cw"></i>

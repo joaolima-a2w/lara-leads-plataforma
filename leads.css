@@ -274,6 +274,28 @@
     background: var(--accent-soft);
 }
 
+/* Ícone do canal por onde o lead respondeu — preenchido na cor do canal (mesmo tom do
+   badge) em vez do cinza decorativo padrão, pra saltar aos olhos direto na coluna. */
+.cell-channels button.channel-responded {
+    color: #fff;
+}
+.cell-channels button.channel-responded.success { background: var(--success); }
+.cell-channels button.channel-responded.success:hover { background: var(--success); filter: brightness(1.1); }
+.cell-channels button.channel-responded.accent { background: var(--accent); }
+.cell-channels button.channel-responded.accent:hover { background: var(--accent); filter: brightness(1.1); }
+.cell-channels button.channel-responded.info { background: var(--info); }
+.cell-channels button.channel-responded.info:hover { background: var(--info); filter: brightness(1.1); }
+
+/* Empilha o badge de "respondido" (quando existe) em cima do badge de status normal —
+   são duas informações independentes (fase da cadência x já respondeu ou não), nunca
+   uma no lugar da outra. */
+.status-cell-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+}
+
 /* Status Badge */
 .status-badge {
     display: inline-flex;

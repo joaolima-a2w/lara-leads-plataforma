@@ -2,6 +2,7 @@
 // pra mostrar se aquele contato já está em alguma cadência (e qual), sem precisar
 // de FK reconhecida pelo PostgREST.
 const { supabaseAdmin } = require('./supabaseClient');
+const { mapRespondido } = require('./leadsCadenciaApi');
 
 async function getDecisoresStats() {
     // As 4 contagens são independentes entre si — rodar em paralelo custa 1 round-trip
@@ -61,7 +62,7 @@ async function getDecisores({ page = 1, pageSize = 20, search = '' } = {}) {
     if (ids.length > 0) {
         const { data: cadencias, error: cadErr } = await supabaseAdmin
             .from('lead_cadencias')
-            .select('id,decisor_id,status,iniciado_em')
+            .select('id,decisor_id,status,iniciado_em,respondido_wpp,respondido_email,respondido_linkedin')
             .in('decisor_id', ids)
             .order('iniciado_em', { ascending: false });
         if (cadErr) throw new Error(`Falha ao buscar cadências dos contatos: ${cadErr.message}`);
@@ -83,7 +84,14 @@ async function getDecisores({ page = 1, pageSize = 20, search = '' } = {}) {
             email_verificado: d.email_verificado,
             phone_number: d.phone_number,
             telefone_verificado: d.telefone_verificado,
-            em_cadencia: cadencia ? { lead_cadencia_id: cadencia.id, status: cadencia.status } : null
+            // "respondido" é independente de status — um lead pode estar "ativo" (ou
+            // qualquer outra fase, mesmo pausado) e já ter respondido por um ou mais
+            // canais ao mesmo tempo.
+            em_cadencia: cadencia ? {
+                lead_cadencia_id: cadencia.id,
+                status: cadencia.status,
+                respondido: mapRespondido(cadencia)
+            } : null
         };
     });
 

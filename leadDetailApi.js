@@ -3,7 +3,7 @@
 // stage_notes — aditiva, não é escrita pelos workflows n8n) e outros contatos da
 // mesma empresa.
 const { supabaseAdmin } = require('./supabaseClient');
-const { mapStatus } = require('./leadsCadenciaApi');
+const { mapStatus, mapRespondido } = require('./leadsCadenciaApi');
 
 // Ações que o usuário pode disparar na tela de detalhe do lead — cada uma vira um
 // update direto em lead_cadencias.status (e, no caso de "concluir", também marca
@@ -135,6 +135,8 @@ async function getLeadDetail(leadCadenciaId) {
             id: lead.id,
             lead_name: lead.lead_name || decisor?.name,
             status: mapStatus(lead.status, lead.finalizado_em),
+            // Independente do status da cadência — ver leadsCadenciaApi.js.
+            respondido: mapRespondido(lead),
             etapa_atual: lead.etapa_atual,
             proxima_etapa: lead.proxima_etapa,
             proxima_data_envio: lead.proxima_data_envio,

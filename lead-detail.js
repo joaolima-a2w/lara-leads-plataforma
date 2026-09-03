@@ -33,6 +33,27 @@ function formatDate(isoString) {
     return new Date(isoString).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function formatDateTime(isoString) {
+    if (!isoString) return '—';
+    return new Date(isoString).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// Tempo relativo ("há 2 horas") pra chamar mais atenção que uma data crua — o exato
+// ainda aparece do lado, então não perde precisão.
+function formatRelativeTime(isoString) {
+    if (!isoString) return '—';
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'agora mesmo';
+    if (diffMin < 60) return `há ${diffMin} min`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `há ${diffHours}h`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return 'ontem';
+    if (diffDays < 7) return `há ${diffDays} dias`;
+    return formatDate(isoString);
+}
+
 const STATUS_LABELS = {
     concluida: { label: 'Concluída', icon: 'check' },
     atual: { label: 'Em andamento', icon: 'circle-dot' },
@@ -59,6 +80,23 @@ function renderHeaderActions(status) {
     return `<div class="lead-header-actions">${buttons.join('')}</div>`;
 }
 
+// Um card por canal respondido — ícone grande na cor do canal, "quando" em destaque
+// (relativo, pra saltar aos olhos) com a data/hora exata logo abaixo. Aparece mesmo
+// com a cadência pausada/cancelada — "respondido" é independente do status.
+function renderResponseBanner(respondido) {
+    if (!respondido || respondido.length === 0) return '';
+    const cards = respondido.map(r => `
+        <div class="lead-response-card ${r.tone}">
+            <div class="lead-response-icon"><i data-lucide="${r.icon}"></i></div>
+            <div class="lead-response-body">
+                <span class="lead-response-title">${escapeHtml(r.label)}</span>
+                <span class="lead-response-time">${formatRelativeTime(r.em)} · ${formatDateTime(r.em)}</span>
+            </div>
+        </div>
+    `).join('');
+    return `<div class="lead-response-banner">${cards}</div>`;
+}
+
 function renderHeader(detail) {
     const { lead, decisor, cadencia } = detail;
     document.getElementById('breadcrumb-lead-name').textContent = lead.lead_name || '—';
@@ -71,6 +109,7 @@ function renderHeader(detail) {
                     <span class="status-badge ${lead.status.tone}">${escapeHtml(lead.status.label)}</span>
                 </div>
                 <div class="lead-header-sub">${escapeHtml(decisor?.title || '')}${decisor?.company ? ' · ' + escapeHtml(decisor.company) : ''}</div>
+                ${renderResponseBanner(lead.respondido)}
             </div>
             <div class="lead-header-meta">
                 <div class="lead-header-meta-item">

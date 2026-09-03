@@ -47,7 +47,7 @@ module.exports = async (req, res) => {
             const params = getSearchParams(req);
             const page = parseInt(params.get('page'), 10) || 1;
             const pageSize = parseInt(params.get('pageSize'), 10) || 20;
-            const result = await leadsCadenciaApi.getLeadsCadencia({ page, pageSize, search: params.get('search') || '', status: params.get('status') || '' });
+            const result = await leadsCadenciaApi.getLeadsCadencia({ page, pageSize, search: params.get('search') || '', status: params.get('status') || '', canalResposta: params.get('canalResposta') || '' });
             return res.status(200).json(result);
         }
 

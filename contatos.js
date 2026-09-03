@@ -64,6 +64,16 @@ function renderContactCell(value, verified) {
     `;
 }
 
+// "Respondido" não é uma fase da cadência — é um fato à parte que pode acontecer em
+// qualquer status, então são badges adicionais (pode ter mais de um, se respondeu em
+// mais de um canal), nunca no lugar do badge de status normal. O backend
+// (decisoresApi.js) já manda o array pronto via leadsCadenciaApi.mapRespondido().
+function renderRespondidoBadges(respondido) {
+    return (respondido || [])
+        .map(r => `<span class="status-badge with-icon ${r.tone}"><i data-lucide="${r.icon}" class="status-badge-icon"></i>${escapeHtml(r.label)}</span>`)
+        .join('');
+}
+
 function renderCadenciaCell(emCadencia) {
     if (!emCadencia) return `<span class="status-badge neutral">Sem cadência</span>`;
     const statusMap = {
@@ -74,22 +84,13 @@ function renderCadenciaCell(emCadencia) {
         cancelado: { label: 'Cancelado', tone: 'danger' },
         finalizado: { label: 'Concluído', tone: 'info' }
     };
-    // O status mais importante pro usuário — um cron por canal seta "respondido wpp" /
-    // "respondido email" / "respondido linkedin". Mesmas cores/ícones do badge em
-    // leads.js: verde=WhatsApp, azul=LinkedIn, roxo (destaque)=E-mail.
-    const respondedMatch = /^respondido\s+(wpp|email|linkedin)$/i.exec((emCadencia.status || '').trim());
-    if (respondedMatch) {
-        const channel = respondedMatch[1].toLowerCase();
-        const respondedInfo = {
-            wpp: { label: 'Respondido no WhatsApp', tone: 'success', icon: 'message-circle' },
-            email: { label: 'Respondido por E-mail', tone: 'accent', icon: 'mail' },
-            linkedin: { label: 'Respondido no LinkedIn', tone: 'info', icon: 'external-link' }
-        }[channel];
-        return `<span class="status-badge with-icon ${respondedInfo.tone}"><i data-lucide="${respondedInfo.icon}" class="status-badge-icon"></i>${escapeHtml(respondedInfo.label)}</span>`;
-    }
-
     const info = statusMap[emCadencia.status] || { label: emCadencia.status, tone: 'neutral' };
-    return `<span class="status-badge ${info.tone}">${escapeHtml(info.label)}</span>`;
+    return `
+        <div class="status-cell-stack">
+            ${renderRespondidoBadges(emCadencia.respondido)}
+            <span class="status-badge ${info.tone}">${escapeHtml(info.label)}</span>
+        </div>
+    `;
 }
 
 function renderRow(row) {
