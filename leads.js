@@ -91,16 +91,6 @@ function renderStatusBadge(status) {
     return `<span class="status-badge ${status.tone}">${escapeHtml(status.label)}</span>`;
 }
 
-// "Respondido" não é uma fase da cadência — é um fato à parte que pode acontecer em
-// qualquer status (ver leadsCadenciaApi.js), então são badges adicionais, empilhados
-// junto do status normal, nunca no lugar dele. Pode ter mais de um (respondeu em mais
-// de um canal).
-function renderRespondidoBadges(respondido) {
-    return (respondido || [])
-        .map(r => `<span class="status-badge with-icon ${r.tone}"><i data-lucide="${r.icon}" class="status-badge-icon"></i>${escapeHtml(r.label)}</span>`)
-        .join('');
-}
-
 // Coluna "Canais": além dos botões decorativos de ação (ligar / ação da Lara), o
 // ícone do canal por onde o lead respondeu (e-mail/WhatsApp/LinkedIn) ganha destaque
 // direto ali — reforço visual rápido, além do badge e da linha inteira marcada.
@@ -152,12 +142,7 @@ function renderRow(row) {
             <td>${escapeHtml(row.responsavel)}</td>
             <td>${renderChannelsCell(row.respondido)}</td>
             <td>${formatDate(row.atualizado_em)}</td>
-            <td>
-                <div class="status-cell-stack">
-                    ${renderRespondidoBadges(row.respondido)}
-                    ${renderStatusBadge(row.status)}
-                </div>
-            </td>
+            <td>${renderStatusBadge(row.status)}</td>
         </tr>
     `;
 }
